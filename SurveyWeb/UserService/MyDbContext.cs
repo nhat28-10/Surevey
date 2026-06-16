@@ -15,8 +15,8 @@ public class MyDbContext : DbContext
         if (!Roles.Any())
         {
             Roles.AddRange(
-                new Role(1, "Member"),
-                new Role(2, "Employee"),
+                new Role(1, "Collaborator"),
+                new Role(2, "Customer"),
                 new Role(3, "Admin")
             );
             SaveChanges();
