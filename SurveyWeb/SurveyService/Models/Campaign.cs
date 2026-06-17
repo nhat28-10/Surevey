@@ -19,6 +19,8 @@ public class Campaign
     public string Category { get; set; } = string.Empty;
     public CampaignStatus Status { get; set; } = CampaignStatus.DRAFT;
     public string? RejectReason { get; set; }
+    public bool IsEscrowed { get; set; }
+    public DateTime? EscrowedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

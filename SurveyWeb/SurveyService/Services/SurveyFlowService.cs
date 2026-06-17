@@ -10,11 +10,13 @@ public class SurveyFlowService : ISurveyFlowService
 {
     private readonly SurveyDbContext _dbContext;
     private readonly ICurrentUserService _currentUser;
+    private readonly IWalletServiceClient _walletServiceClient;
 
-    public SurveyFlowService(SurveyDbContext dbContext, ICurrentUserService currentUser)
+    public SurveyFlowService(SurveyDbContext dbContext, ICurrentUserService currentUser, IWalletServiceClient walletServiceClient)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
+        _walletServiceClient = walletServiceClient;
     }
 
     public async Task<CampaignDto> CreateCampaignAsync(CreateCampaignRequest request)
@@ -36,13 +38,18 @@ public class SurveyFlowService : ISurveyFlowService
             TargetResponses = request.TargetResponses,
             Deadline = request.Deadline.ToUniversalTime(),
             Category = request.Category.Trim(),
-            Status = request.SubmitForReview ? CampaignStatus.PENDING_REVIEW : CampaignStatus.DRAFT,
+            Status = CampaignStatus.DRAFT,
             CreatedAt = now,
             UpdatedAt = now
         };
 
         _dbContext.Campaigns.Add(campaign);
         await _dbContext.SaveChangesAsync();
+
+        if (request.SubmitForReview)
+        {
+            return await SubmitCampaignForReviewAsync(campaign.Id);
+        }
 
         return ToCampaignDto(campaign);
     }
@@ -92,6 +99,20 @@ public class SurveyFlowService : ISurveyFlowService
             throw BadRequest("Campaign deadline must be in the future before submitting for review.");
         }
 
+        if (!campaign.IsEscrowed)
+        {
+            await _walletServiceClient.EscrowCampaignAsync(new EscrowCampaignWalletRequest
+            {
+                CampaignId = campaign.Id,
+                CustomerId = campaign.CustomerId,
+                RewardPerResponse = campaign.RewardPerResponse,
+                TargetResponses = campaign.TargetResponses,
+                Description = $"Escrow budget for campaign {campaign.Id}"
+            });
+            campaign.IsEscrowed = true;
+            campaign.EscrowedAt = DateTime.UtcNow;
+        }
+
         campaign.Status = CampaignStatus.PENDING_REVIEW;
         campaign.RejectReason = null;
         campaign.UpdatedAt = DateTime.UtcNow;
@@ -139,6 +160,9 @@ public class SurveyFlowService : ISurveyFlowService
         var wasAlreadyApproved = submission.Status == SubmissionStatus.APPROVED;
         var now = DateTime.UtcNow;
 
+        PayRewardWalletResponse? rewardResponse = null;
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
         submission.Status = SubmissionStatus.APPROVED;
         submission.RejectReason = null;
         submission.ReviewedByUserId = _currentUser.UserId;
@@ -160,8 +184,23 @@ public class SurveyFlowService : ISurveyFlowService
 
         submission.Campaign.UpdatedAt = now;
 
-        // TODO Phase 3 WalletService: credit RewardPerResponse to CollaboratorId and prevent double reward.
+        if (!wasAlreadyApproved && submission.RewardPaidAt == null)
+        {
+            rewardResponse = await _walletServiceClient.PayRewardAsync(new PayRewardWalletRequest
+            {
+                CampaignId = submission.Campaign!.Id,
+                SubmissionId = submission.Id,
+                CustomerId = submission.Campaign.CustomerId,
+                CollaboratorId = submission.CollaboratorId,
+                RewardAmount = submission.Campaign.RewardPerResponse,
+                Description = $"Reward for submission {submission.Id}"
+            });
+            submission.RewardPaidAt = DateTime.UtcNow;
+            submission.RewardTransactionReference = rewardResponse.TransactionReference;
+        }
+
         await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new ReviewSubmissionResponse
         {
@@ -170,7 +209,9 @@ public class SurveyFlowService : ISurveyFlowService
             ParticipationStatus = submission.Participation.Status,
             CampaignStatus = submission.Campaign.Status,
             ApprovedResponses = submission.Campaign.ApprovedResponses,
-            Message = "Submission approved successfully."
+            Message = rewardResponse?.AlreadyPaid == true
+                ? "Submission approved successfully. Reward was already paid before."
+                : "Submission approved successfully. Reward paid to collaborator wallet."
         };
     }
 
@@ -256,8 +297,18 @@ public class SurveyFlowService : ISurveyFlowService
             throw BadRequest("Only pending review campaigns can be rejected.");
         }
 
+        if (campaign.IsEscrowed)
+        {
+            await _walletServiceClient.RefundCampaignAsync(campaign.Id, new RefundCampaignWalletRequest
+            {
+                CustomerId = campaign.CustomerId,
+                Description = $"Refund escrow for rejected campaign {campaign.Id}"
+            });
+        }
+
         campaign.Status = CampaignStatus.REJECTED;
         campaign.RejectReason = request.Reason.Trim();
+        campaign.IsEscrowed = false;
         campaign.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
@@ -498,6 +549,8 @@ public class SurveyFlowService : ISurveyFlowService
             Category = campaign.Category,
             Status = campaign.Status,
             RejectReason = campaign.RejectReason,
+            IsEscrowed = campaign.IsEscrowed,
+            EscrowedAt = campaign.EscrowedAt,
             CreatedAt = campaign.CreatedAt,
             UpdatedAt = campaign.UpdatedAt
         };
@@ -536,6 +589,8 @@ public class SurveyFlowService : ISurveyFlowService
             RejectReason = submission.RejectReason,
             ReviewedByUserId = submission.ReviewedByUserId,
             ReviewedAt = submission.ReviewedAt,
+            RewardPaidAt = submission.RewardPaidAt,
+            RewardTransactionReference = submission.RewardTransactionReference,
             CreatedAt = submission.CreatedAt,
             UpdatedAt = submission.UpdatedAt,
             Campaign = campaign == null ? null : ToCampaignDto(campaign)

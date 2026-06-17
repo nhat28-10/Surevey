@@ -30,6 +30,7 @@ public class SurveyDbContext : DbContext
             entity.Property(c => c.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(c => c.CampaignType).HasConversion<string>().HasMaxLength(32);
             entity.Property(c => c.RejectReason).HasMaxLength(1000);
+            entity.Property(c => c.IsEscrowed).HasDefaultValue(false);
             entity.HasIndex(c => c.CustomerId);
             entity.HasIndex(c => c.Status);
         });
@@ -53,6 +54,7 @@ public class SurveyDbContext : DbContext
             entity.Property(s => s.Note).HasMaxLength(2000);
             entity.Property(s => s.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(s => s.RejectReason).HasMaxLength(1000);
+            entity.Property(s => s.RewardTransactionReference).HasMaxLength(80);
             entity.HasIndex(s => s.CampaignId);
             entity.HasIndex(s => s.ParticipationId);
             entity.HasOne(s => s.Campaign)

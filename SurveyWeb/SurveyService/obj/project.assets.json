@@ -3576,11 +3576,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "d:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\SurveyService.csproj",
+      "projectUniqueName": "D:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\SurveyService.csproj",
       "projectName": "SurveyService",
-      "projectPath": "d:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\SurveyService.csproj",
+      "projectPath": "D:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\SurveyService.csproj",
       "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
-      "outputPath": "d:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\obj\\",
+      "outputPath": "D:\\Code\\EXE201\\Surevey\\SurveyWeb\\SurveyService\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config"
