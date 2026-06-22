@@ -6,7 +6,13 @@ public interface IWalletFlowService
 {
     Task<WalletDto> GetMyWalletAsync();
     Task<IReadOnlyList<WalletTransactionDto>> GetMyTransactionsAsync();
+    Task<WithdrawalDto> CreateWithdrawalAsync(CreateWithdrawalRequest request);
+    Task<IReadOnlyList<WithdrawalDto>> GetMyWithdrawalsAsync();
     Task<AdminTopupResponse> AdminTopupAsync(int userId, AdminTopupRequest request);
+    Task<IReadOnlyList<WithdrawalDto>> GetAdminWithdrawalsAsync(Enums.WithdrawalStatus? status);
+    Task<WithdrawalDto> ApproveWithdrawalAsync(int withdrawalId, ReviewWithdrawalRequest request);
+    Task<WithdrawalDto> RejectWithdrawalAsync(int withdrawalId, ReviewWithdrawalRequest request);
+    Task<WithdrawalDto> MarkWithdrawalPaidAsync(int withdrawalId, ReviewWithdrawalRequest request);
     CampaignQuoteResponse GetCampaignQuote(CampaignQuoteRequest request);
     Task<CampaignPaymentDto> CreateCampaignPaymentAsync(int campaignId, CreateCampaignPaymentRequest request);
     Task<CampaignPaymentDto> SubmitPaymentProofAsync(int paymentId, SubmitPaymentProofRequest request);

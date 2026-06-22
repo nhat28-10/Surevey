@@ -13,6 +13,7 @@ public class WalletDbContext : DbContext
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<CampaignEscrow> CampaignEscrows => Set<CampaignEscrow>();
     public DbSet<CampaignPayment> CampaignPayments => Set<CampaignPayment>();
+    public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +75,23 @@ public class WalletDbContext : DbContext
             entity.Property(p => p.CustomerNote).HasMaxLength(1000);
             entity.Property(p => p.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(p => p.RejectReason).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<WithdrawalRequest>(entity =>
+        {
+            entity.HasIndex(w => w.CollaboratorId);
+            entity.HasIndex(w => w.Status);
+            entity.Property(w => w.Amount).HasPrecision(18, 2);
+            entity.Property(w => w.BankName).HasMaxLength(120);
+            entity.Property(w => w.BankAccountName).HasMaxLength(160);
+            entity.Property(w => w.BankAccountNumber).HasMaxLength(80);
+            entity.Property(w => w.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(w => w.AdminNote).HasMaxLength(1000);
+            entity.Property(w => w.RejectReason).HasMaxLength(1000);
+            entity.HasOne(w => w.Wallet)
+                .WithMany(w => w.WithdrawalRequests)
+                .HasForeignKey(w => w.WalletId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

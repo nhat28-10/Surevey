@@ -11,4 +11,5 @@ public class Wallet
     public DateTime UpdatedAt { get; set; }
 
     public ICollection<WalletTransaction> Transactions { get; set; } = new List<WalletTransaction>();
+    public ICollection<WithdrawalRequest> WithdrawalRequests { get; set; } = new List<WithdrawalRequest>();
 }

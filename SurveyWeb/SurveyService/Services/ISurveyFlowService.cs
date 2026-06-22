@@ -8,6 +8,7 @@ public interface ISurveyFlowService
     Task<IReadOnlyList<CampaignDto>> GetMyCampaignsAsync();
     Task<CampaignDto> GetCampaignAsync(int campaignId);
     Task<CampaignDto> SubmitCampaignForReviewAsync(int campaignId);
+    Task<CampaignDto> MarkCampaignPaidAsync(int campaignId, MarkCampaignPaidRequest request);
     Task<IReadOnlyList<SubmissionDto>> GetCampaignSubmissionsAsync(int campaignId);
     Task<SubmissionDto> GetSubmissionAsync(int submissionId);
     Task<ReviewSubmissionResponse> ApproveSubmissionAsync(int submissionId);

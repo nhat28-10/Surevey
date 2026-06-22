@@ -11,16 +11,23 @@ public class WalletFlowService : IWalletFlowService
     private const string CampaignReference = "CAMPAIGN";
     private const string PaymentReference = "PAYMENT";
     private const string SubmissionReference = "SUBMISSION";
+    private const string WithdrawalReference = "WITHDRAWAL";
     private const decimal PlatformFeeRate = 0.20m;
     private readonly WalletDbContext _dbContext;
     private readonly ICurrentUserService _currentUser;
     private readonly IConfiguration _configuration;
+    private readonly ISurveyServiceClient _surveyServiceClient;
 
-    public WalletFlowService(WalletDbContext dbContext, ICurrentUserService currentUser, IConfiguration configuration)
+    public WalletFlowService(
+        WalletDbContext dbContext,
+        ICurrentUserService currentUser,
+        IConfiguration configuration,
+        ISurveyServiceClient surveyServiceClient)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
         _configuration = configuration;
+        _surveyServiceClient = surveyServiceClient;
     }
 
     public async Task<WalletDto> GetMyWalletAsync()
@@ -37,6 +44,61 @@ public class WalletFlowService : IWalletFlowService
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => ToTransactionDto(t))
+            .ToListAsync();
+    }
+
+    public async Task<WithdrawalDto> CreateWithdrawalAsync(CreateWithdrawalRequest request)
+    {
+        RequireRole("Collaborator");
+        EnsurePositive(request.Amount);
+        ValidateBankInfo(request.BankName, request.BankAccountName, request.BankAccountNumber);
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var wallet = await GetOrCreateWalletAsync(_currentUser.UserId);
+        if (wallet.AvailableBalance < request.Amount)
+        {
+            throw BadRequest("Wallet available balance is not enough for this withdrawal.");
+        }
+
+        var now = DateTime.UtcNow;
+        wallet.AvailableBalance -= request.Amount;
+        wallet.PendingBalance += request.Amount;
+        wallet.UpdatedAt = now;
+
+        var withdrawal = new WithdrawalRequest
+        {
+            CollaboratorId = _currentUser.UserId,
+            Wallet = wallet,
+            WalletId = wallet.Id,
+            Amount = request.Amount,
+            BankName = request.BankName.Trim(),
+            BankAccountName = request.BankAccountName.Trim(),
+            BankAccountNumber = request.BankAccountNumber.Trim(),
+            Status = WithdrawalStatus.PENDING,
+            RequestedAt = now
+        };
+
+        _dbContext.WithdrawalRequests.Add(withdrawal);
+        await _dbContext.SaveChangesAsync();
+
+        AddTransaction(wallet, WalletTransactionType.WITHDRAWAL, -request.Amount,
+            WithdrawalReference, withdrawal.Id.ToString(), $"Withdrawal request {withdrawal.Id} created.");
+
+        await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return ToWithdrawalDto(withdrawal);
+    }
+
+    public async Task<IReadOnlyList<WithdrawalDto>> GetMyWithdrawalsAsync()
+    {
+        RequireRole("Collaborator");
+        var collaboratorId = _currentUser.UserId;
+
+        return await _dbContext.WithdrawalRequests
+            .Where(w => w.CollaboratorId == collaboratorId)
+            .OrderByDescending(w => w.RequestedAt)
+            .Select(w => ToWithdrawalDto(w))
             .ToListAsync();
     }
 
@@ -60,6 +122,131 @@ public class WalletFlowService : IWalletFlowService
             Transaction = ToTransactionDto(transaction),
             Message = "Top-up completed successfully."
         };
+    }
+
+    public async Task<IReadOnlyList<WithdrawalDto>> GetAdminWithdrawalsAsync(WithdrawalStatus? status)
+    {
+        RequireRole("Admin");
+        var query = _dbContext.WithdrawalRequests.AsQueryable();
+        if (status.HasValue)
+        {
+            query = query.Where(w => w.Status == status.Value);
+        }
+
+        return await query
+            .OrderByDescending(w => w.RequestedAt)
+            .Select(w => ToWithdrawalDto(w))
+            .ToListAsync();
+    }
+
+    public async Task<WithdrawalDto> ApproveWithdrawalAsync(int withdrawalId, ReviewWithdrawalRequest request)
+    {
+        RequireRole("Admin");
+        var withdrawal = await FindWithdrawalAsync(withdrawalId);
+
+        if (withdrawal.Status is WithdrawalStatus.APPROVED or WithdrawalStatus.PAID)
+        {
+            return ToWithdrawalDto(withdrawal);
+        }
+
+        if (withdrawal.Status == WithdrawalStatus.REJECTED)
+        {
+            throw BadRequest("Rejected withdrawals cannot be approved.");
+        }
+
+        withdrawal.Status = WithdrawalStatus.APPROVED;
+        withdrawal.AdminNote = NullIfWhiteSpace(request.AdminNote);
+        withdrawal.ReviewedByAdminId = _currentUser.UserId;
+        withdrawal.ReviewedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return ToWithdrawalDto(withdrawal);
+    }
+
+    public async Task<WithdrawalDto> RejectWithdrawalAsync(int withdrawalId, ReviewWithdrawalRequest request)
+    {
+        RequireRole("Admin");
+        var withdrawal = await FindWithdrawalAsync(withdrawalId);
+
+        if (withdrawal.Status == WithdrawalStatus.REJECTED)
+        {
+            return ToWithdrawalDto(withdrawal);
+        }
+
+        if (withdrawal.Status == WithdrawalStatus.PAID)
+        {
+            throw BadRequest("Paid withdrawals cannot be rejected.");
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var wallet = await GetWalletByIdAsync(withdrawal.WalletId);
+        var referenceId = withdrawal.Id.ToString();
+        var rejectedTransactionExists = await _dbContext.WalletTransactions.AnyAsync(t =>
+            t.Type == WalletTransactionType.WITHDRAWAL_REJECTED
+            && t.ReferenceType == WithdrawalReference
+            && t.ReferenceId == referenceId);
+
+        if (!rejectedTransactionExists)
+        {
+            if (wallet.PendingBalance < withdrawal.Amount)
+            {
+                throw BadRequest("Wallet pending balance is not enough to reject this withdrawal.");
+            }
+
+            wallet.PendingBalance -= withdrawal.Amount;
+            wallet.AvailableBalance += withdrawal.Amount;
+            wallet.UpdatedAt = DateTime.UtcNow;
+            AddTransaction(wallet, WalletTransactionType.WITHDRAWAL_REJECTED, withdrawal.Amount,
+                WithdrawalReference, referenceId, $"Withdrawal request {withdrawal.Id} rejected.");
+        }
+
+        withdrawal.Status = WithdrawalStatus.REJECTED;
+        withdrawal.AdminNote = NullIfWhiteSpace(request.AdminNote);
+        withdrawal.RejectReason = NullIfWhiteSpace(request.RejectReason) ?? withdrawal.AdminNote;
+        withdrawal.ReviewedByAdminId = _currentUser.UserId;
+        withdrawal.ReviewedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return ToWithdrawalDto(withdrawal);
+    }
+
+    public async Task<WithdrawalDto> MarkWithdrawalPaidAsync(int withdrawalId, ReviewWithdrawalRequest request)
+    {
+        RequireRole("Admin");
+        var withdrawal = await FindWithdrawalAsync(withdrawalId);
+
+        if (withdrawal.Status == WithdrawalStatus.PAID)
+        {
+            return ToWithdrawalDto(withdrawal);
+        }
+
+        if (withdrawal.Status != WithdrawalStatus.APPROVED)
+        {
+            throw BadRequest("Only approved withdrawals can be marked as paid.");
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var wallet = await GetWalletByIdAsync(withdrawal.WalletId);
+        if (wallet.PendingBalance < withdrawal.Amount)
+        {
+            throw BadRequest("Wallet pending balance is not enough to mark this withdrawal as paid.");
+        }
+
+        wallet.PendingBalance -= withdrawal.Amount;
+        wallet.UpdatedAt = DateTime.UtcNow;
+
+        withdrawal.Status = WithdrawalStatus.PAID;
+        withdrawal.AdminNote = NullIfWhiteSpace(request.AdminNote) ?? withdrawal.AdminNote;
+        withdrawal.ReviewedByAdminId ??= _currentUser.UserId;
+        withdrawal.ReviewedAt ??= DateTime.UtcNow;
+        withdrawal.PaidAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return ToWithdrawalDto(withdrawal);
     }
 
     public CampaignQuoteResponse GetCampaignQuote(CampaignQuoteRequest request)
@@ -180,6 +367,7 @@ public class WalletFlowService : IWalletFlowService
 
         if (payment.Status == CampaignPaymentStatus.PAID)
         {
+            await NotifyCampaignPaidAsync(payment);
             return ToCampaignPaymentDto(payment);
         }
 
@@ -228,6 +416,7 @@ public class WalletFlowService : IWalletFlowService
 
         await _dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
+        await NotifyCampaignPaidAsync(payment);
 
         return ToCampaignPaymentDto(payment);
     }
@@ -506,10 +695,36 @@ public class WalletFlowService : IWalletFlowService
         return wallet;
     }
 
+    private async Task<Wallet> GetWalletByIdAsync(int walletId)
+    {
+        return await _dbContext.Wallets.FirstOrDefaultAsync(w => w.Id == walletId)
+            ?? throw NotFound("Wallet was not found.");
+    }
+
     private async Task<CampaignPayment> FindCampaignPaymentAsync(int paymentId)
     {
         return await _dbContext.CampaignPayments.FirstOrDefaultAsync(p => p.Id == paymentId)
             ?? throw NotFound("Campaign payment was not found.");
+    }
+
+    private async Task<WithdrawalRequest> FindWithdrawalAsync(int withdrawalId)
+    {
+        return await _dbContext.WithdrawalRequests.FirstOrDefaultAsync(w => w.Id == withdrawalId)
+            ?? throw NotFound("Withdrawal request was not found.");
+    }
+
+    private async Task NotifyCampaignPaidAsync(CampaignPayment payment)
+    {
+        await _surveyServiceClient.MarkCampaignPaidAsync(new MarkCampaignPaidSurveyRequest
+        {
+            CampaignId = payment.CampaignId,
+            PaymentId = payment.Id,
+            RewardBudget = payment.RewardBudget,
+            PlatformFeeAmount = payment.PlatformFeeAmount,
+            TotalAmount = payment.TotalAmount,
+            AnswerCount = payment.AnswerCount,
+            UnitPricePerAnswer = payment.UnitPricePerAnswer
+        });
     }
 
     private WalletTransaction AddTransaction(Wallet wallet, WalletTransactionType type, decimal amount,
@@ -574,6 +789,24 @@ public class WalletFlowService : IWalletFlowService
         }
 
         EnsurePositive(request.UnitPricePerAnswer);
+    }
+
+    private static void ValidateBankInfo(string bankName, string bankAccountName, string bankAccountNumber)
+    {
+        if (string.IsNullOrWhiteSpace(bankName))
+        {
+            throw BadRequest("BankName is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(bankAccountName))
+        {
+            throw BadRequest("BankAccountName is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(bankAccountNumber))
+        {
+            throw BadRequest("BankAccountNumber is required.");
+        }
     }
 
     private static CampaignQuoteResponse CalculateQuote(int targetResponses, int answerCount, decimal unitPricePerAnswer)
@@ -665,6 +898,27 @@ public class WalletFlowService : IWalletFlowService
             RejectReason = payment.RejectReason,
             CreatedAt = payment.CreatedAt,
             UpdatedAt = payment.UpdatedAt
+        };
+    }
+
+    private static WithdrawalDto ToWithdrawalDto(WithdrawalRequest withdrawal)
+    {
+        return new WithdrawalDto
+        {
+            Id = withdrawal.Id,
+            CollaboratorId = withdrawal.CollaboratorId,
+            WalletId = withdrawal.WalletId,
+            Amount = withdrawal.Amount,
+            BankName = withdrawal.BankName,
+            BankAccountName = withdrawal.BankAccountName,
+            BankAccountNumber = withdrawal.BankAccountNumber,
+            Status = withdrawal.Status,
+            AdminNote = withdrawal.AdminNote,
+            RejectReason = withdrawal.RejectReason,
+            RequestedAt = withdrawal.RequestedAt,
+            ReviewedByAdminId = withdrawal.ReviewedByAdminId,
+            ReviewedAt = withdrawal.ReviewedAt,
+            PaidAt = withdrawal.PaidAt
         };
     }
 

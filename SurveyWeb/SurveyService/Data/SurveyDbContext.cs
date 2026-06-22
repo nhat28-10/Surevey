@@ -26,13 +26,19 @@ public class SurveyDbContext : DbContext
             entity.Property(c => c.GoogleFormUrl).HasMaxLength(1000);
             entity.Property(c => c.ConfirmationCode).HasMaxLength(32).IsRequired();
             entity.Property(c => c.RewardPerResponse).HasPrecision(18, 2);
+            entity.Property(c => c.RewardBudget).HasPrecision(18, 2);
+            entity.Property(c => c.PlatformFeeAmount).HasPrecision(18, 2);
+            entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
+            entity.Property(c => c.UnitPricePerAnswer).HasPrecision(18, 2);
             entity.Property(c => c.Category).HasMaxLength(100).IsRequired();
             entity.Property(c => c.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(c => c.PaymentStatus).HasConversion<string>().HasMaxLength(32);
             entity.Property(c => c.CampaignType).HasConversion<string>().HasMaxLength(32);
             entity.Property(c => c.RejectReason).HasMaxLength(1000);
             entity.Property(c => c.IsEscrowed).HasDefaultValue(false);
             entity.HasIndex(c => c.CustomerId);
             entity.HasIndex(c => c.Status);
+            entity.HasIndex(c => c.PaymentStatus);
         });
 
         modelBuilder.Entity<Participation>(entity =>
