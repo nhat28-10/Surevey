@@ -11,6 +11,12 @@ using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = builder.Configuration["PORT"];
+if (!string.IsNullOrWhiteSpace(port) && string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_URLS"]))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 // ── Swagger với JWT Bearer ──────────────────────────────────────────
 builder.Services.AddSwaggerGen(c =>
 {
@@ -46,10 +52,18 @@ builder.Services.AddDbContext<MyDbContext>(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMVC", policy =>
-        policy.WithOrigins("http://localhost:5080")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials());
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .ToArray();
+
+        policy.WithOrigins(allowedOrigins is { Length: > 0 }
+                ? allowedOrigins
+                : ["http://localhost:5080"])
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
 });
 
 // ── JWT Authentication ───────────────────────────────────────────────
@@ -104,20 +118,24 @@ using (var scope = app.Services.CreateScope())
 
 app.UseCors("AllowMVC");
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("ENABLE_SWAGGER"))
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService API V1");
-    c.RoutePrefix = "swagger";
-});
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService API V1");
-    c.RoutePrefix = string.Empty;
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService API V1");
+        c.RoutePrefix = "swagger";
+    });
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "UserService API V1");
+        c.RoutePrefix = string.Empty;
+    });
+}
 
 app.UseAuthentication(); // phải trước UseAuthorization
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();

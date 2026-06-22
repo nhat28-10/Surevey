@@ -91,14 +91,17 @@ var app = builder.Build();
 
 app.UseCors("GatewayCors");
 
-app.UseSwagger();
-app.UseSwaggerUI(options =>
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("ENABLE_SWAGGER"))
 {
-    options.RoutePrefix = "swagger";
-    options.SwaggerEndpoint("/user/swagger/v1/swagger.json", "UserService API");
-    options.SwaggerEndpoint("/survey/swagger/v1/swagger.json", "SurveyService API");
-    options.SwaggerEndpoint("/wallet/swagger/v1/swagger.json", "WalletService API");
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.RoutePrefix = "swagger";
+        options.SwaggerEndpoint("/user/swagger/v1/swagger.json", "UserService API");
+        options.SwaggerEndpoint("/survey/swagger/v1/swagger.json", "SurveyService API");
+        options.SwaggerEndpoint("/wallet/swagger/v1/swagger.json", "WalletService API");
+    });
+}
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 

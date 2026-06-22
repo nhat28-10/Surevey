@@ -9,6 +9,12 @@ using SurveyService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = builder.Configuration["PORT"];
+if (!string.IsNullOrWhiteSpace(port) && string.IsNullOrWhiteSpace(builder.Configuration["ASPNETCORE_URLS"]))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -16,21 +22,31 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDbContext<SurveyDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("SurveyServiceConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("SurveyServiceConnection")
+        ?? builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontendLocal", policy =>
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:5080",
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:5080")
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+            ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .ToArray();
+
+        policy.WithOrigins(allowedOrigins is { Length: > 0 }
+                ? allowedOrigins
+                : [
+                    "http://localhost:3000",
+                    "http://localhost:5173",
+                    "http://localhost:5080",
+                    "http://127.0.0.1:3000",
+                    "http://127.0.0.1:5173",
+                    "http://127.0.0.1:5080"
+                ])
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials());
+            .AllowCredentials();
+    });
 });
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -62,7 +78,8 @@ builder.Services.AddScoped<ISurveyFlowService, SurveyFlowService>();
 builder.Services.AddHttpClient<IWalletServiceClient, WalletServiceClient>((serviceProvider, client) =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-    var baseUrl = configuration["Services:WalletServiceBaseUrl"];
+    var baseUrl = configuration["ServiceUrls:WalletService"]
+        ?? configuration["Services:WalletServiceBaseUrl"];
     if (!string.IsNullOrWhiteSpace(baseUrl))
     {
         client.BaseAddress = new Uri(baseUrl);
@@ -97,20 +114,24 @@ var app = builder.Build();
 
 app.UseCors("AllowFrontendLocal");
 
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("ENABLE_SWAGGER"))
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SurveyService API V1");
-    c.RoutePrefix = "swagger";
-});
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SurveyService API V1");
-    c.RoutePrefix = string.Empty;
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SurveyService API V1");
+        c.RoutePrefix = "swagger";
+    });
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SurveyService API V1");
+        c.RoutePrefix = string.Empty;
+    });
+}
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();

@@ -3,3 +3,4 @@
 .vs/
 .git/
 *.user
+**/appsettings.Development.json

@@ -1,267 +1,116 @@
-# SureSurvey Backend Testing Guide
+# SureSurvey Testing Guide
 
-## Scope
+Use the ApiGateway Swagger UI unless debugging an individual service:
 
-This guide stabilizes the MVP backend before tester handoff. It covers:
-
-- UserService auth and role tokens
-- SurveyService campaign, participation, submission, and campaign payment status
-- WalletService manual campaign payment, escrow/reward, and withdrawal
-
-## Local Setup
-
-Run from `backend/SurveyWeb`.
-
-1. Configure local settings from each service's `appsettings.example.json`.
-2. Use the same `Jwt` and `InternalService:ApiKey` values across services.
-3. Start PostgreSQL on the configured port, usually `127.0.0.1:5434`.
-4. Apply migrations:
-
-```bash
-dotnet ef database update --project UserService --startup-project UserService
-dotnet ef database update --project SurveyService --startup-project SurveyService
-dotnet ef database update --project WalletService --startup-project WalletService
+```text
+https://<api-gateway-domain>/swagger
 ```
 
-5. Verify build:
+For local testing:
 
-```bash
-dotnet build SurveyWeb.sln
+```text
+http://localhost:5088/swagger
 ```
 
-## Run Services
+Select the service document from the Swagger dropdown:
 
-Open one terminal per service:
+- `UserService API`
+- `SurveyService API`
+- `WalletService API`
 
-```bash
-dotnet run --project UserService
-dotnet run --project SurveyService
-dotnet run --project WalletService
+Use the Authorize button with:
+
+```text
+Bearer <jwt-token>
 ```
 
-Default local URLs from `launchSettings.json`:
+## Setup Checks
 
-- UserService: check its Swagger URL from console output
-- SurveyService: `https://localhost:7148` or `http://localhost:5159`
-- WalletService: `https://localhost:7074` or `http://localhost:5258`
+1. Confirm all health endpoints return `200 OK`.
+2. Confirm Gateway Swagger loads all 3 documents.
+3. Confirm the same `Jwt` and `InternalService:ApiKey` values are configured across services.
+4. Confirm migrations have been applied.
 
-Swagger is served at each service root in Development.
+## Account Flow
 
-## Enum and Swagger Checks
+1. Register or login a Customer in `UserService`.
+2. Register or login a Collaborator in `UserService`.
+3. Login Admin in `UserService`.
+4. Save the JWT token for each role.
 
-Confirm enum values appear as strings in request/response JSON:
+## Campaign Payment Flow
 
-- Campaign status: `DRAFT`, `PENDING_REVIEW`, `ACTIVE`, `REJECTED`, `PAUSED`, `COMPLETED`, `CANCELLED`, `EXPIRED`
-- Survey payment status: `UNPAID`, `PAYMENT_PENDING`, `PAYMENT_VERIFYING`, `PAID`, `PAYMENT_REJECTED`
-- Campaign payment status: `PENDING`, `PENDING_VERIFY`, `PAID`, `REJECTED`, `CANCELLED`
-- Withdrawal status: `PENDING`, `APPROVED`, `REJECTED`, `PAID`
+Use the Customer token unless a step says Admin.
 
-Swagger should show DTO schemas for:
+1. Customer creates a campaign in `SurveyService`.
+2. Customer creates campaign payment in `WalletService`.
+3. Customer uploads `proofImageUrl` in `WalletService`.
+4. Admin approves payment in `WalletService`.
+5. Customer submits campaign for review in `SurveyService`.
+6. Admin approves campaign in `SurveyService`.
 
-- `CampaignQuoteRequest`, `CreateCampaignPaymentRequest`, `SubmitPaymentProofRequest`, `RejectPaymentRequest`
-- `CreateWithdrawalRequest`, `ReviewWithdrawalRequest`
-- `MarkCampaignPaidRequest` on the internal SurveyService route
+Expected results:
 
-## Manual Campaign Payment Flow
+- Campaign starts as draft or pending payment according to existing business rules.
+- Payment proof changes the payment to verification state.
+- Admin payment approval marks the campaign as paid and escrowed.
+- Admin campaign approval makes the campaign available for collaborators.
 
-Use a Customer token unless noted.
+## Participation Flow
 
-1. Create campaign in SurveyService:
+Use the Collaborator token unless a step says Customer.
 
-```http
-POST /api/campaigns
-```
+1. Collaborator views available surveys in `SurveyService`.
+2. Collaborator accepts a campaign.
+3. Collaborator submits proof or confirmation code.
+4. Customer approves the submission.
+5. Collaborator checks wallet in `WalletService`.
 
-Required fields include `answerCount`, `unitPricePerAnswer`, and `targetResponses`. `rewardPerResponse` may be `0` or must equal `answerCount * unitPricePerAnswer`.
+Expected results:
 
-Expected:
-
-- `status = DRAFT`
-- `paymentStatus = PAYMENT_PENDING`
-- `rewardPerResponse`, `rewardBudget`, `platformFeeAmount`, `totalAmount` are calculated by backend
-
-2. Create payment in WalletService:
-
-```http
-POST /api/campaigns/{campaignId}/payments
-```
-
-Expected:
-
-- Only the campaign owner can create it
-- Response contains bank info, QR URL, `transferContent`, and backend-calculated totals
-
-3. Submit payment proof:
-
-```http
-POST /api/payments/{paymentId}/proof
-```
-
-Expected:
-
-- Only the payment owner can submit proof
-- Status changes to `PENDING_VERIFY`
-
-4. Admin approve payment:
-
-```http
-POST /api/admin/payments/{paymentId}/approve
-```
-
-Expected:
-
-- Only Admin can approve
-- WalletService creates or reuses campaign escrow from `rewardBudget`
-- WalletService records `CUSTOMER_PAYMENT` and `PLATFORM_FEE`
-- SurveyService campaign is marked `paymentStatus = PAID`, `isEscrowed = true`
-
-5. Submit campaign for review:
-
-```http
-POST /api/campaigns/{campaignId}/submit-review
-```
-
-Expected:
-
-- Before payment is verified: `400 Campaign payment must be verified before submitting for review.`
-- After payment is verified: status becomes `PENDING_REVIEW`
-
-6. Admin campaign review in SurveyService:
-
-```http
-GET /api/admin/campaigns/pending
-POST /api/admin/campaigns/{campaignId}/approve
-POST /api/admin/campaigns/{campaignId}/reject
-```
-
-## Participation and Reward Flow
-
-Use a Collaborator token unless noted.
-
-1. List active campaigns:
-
-```http
-GET /api/surveys/available
-```
-
-2. Accept campaign:
-
-```http
-POST /api/campaigns/{campaignId}/accept
-```
-
-3. Submit proof/confirmation code:
-
-```http
-POST /api/participations/{participationId}/submit
-```
-
-4. Customer approves submission:
-
-```http
-POST /api/submissions/{submissionId}/approve
-```
-
-Expected:
-
-- Collaborator wallet `AvailableBalance` increases by `RewardPerResponse`
-- Re-approving the same submission does not pay reward again
+- Collaborator can only submit for accepted campaigns.
+- Approved submission rewards the collaborator wallet once.
+- Re-approving the same submission must not duplicate rewards.
 
 ## Withdrawal Flow
 
-Use a Collaborator token unless noted.
+Use the Collaborator token unless a step says Admin.
 
-1. Create withdrawal:
+1. Collaborator requests withdrawal in `WalletService`.
+2. Admin approves withdrawal.
+3. Admin marks withdrawal paid.
 
-```http
-POST /api/withdrawals
-```
+Optional rejection check:
 
-Expected:
+1. Collaborator requests another withdrawal.
+2. Admin rejects withdrawal.
 
-- Only collaborator can create
-- Amount cannot exceed wallet `AvailableBalance`
-- Amount moves from `AvailableBalance` to `PendingBalance`
-- Wallet transaction `WITHDRAWAL` is created with withdrawal reference
+Expected results:
 
-2. List my withdrawals:
-
-```http
-GET /api/withdrawals/me
-```
-
-3. Admin list/filter withdrawals:
-
-```http
-GET /api/admin/withdrawals
-GET /api/admin/withdrawals?status=PENDING
-```
-
-4. Admin approve:
-
-```http
-POST /api/admin/withdrawals/{id}/approve
-```
-
-Expected:
-
-- Status becomes `APPROVED`
-- Pending balance is unchanged
-- Calling again does not change balances
-
-5. Admin reject:
-
-```http
-POST /api/admin/withdrawals/{id}/reject
-```
-
-Expected:
-
-- Status becomes `REJECTED`
-- Amount moves from `PendingBalance` back to `AvailableBalance`
-- Wallet transaction `WITHDRAWAL_REJECTED` is created
-- Calling again does not refund again
-
-6. Admin mark paid:
-
-```http
-POST /api/admin/withdrawals/{id}/mark-paid
-```
-
-Expected:
-
-- Only `APPROVED` withdrawal can be marked paid
-- Status becomes `PAID`
-- Amount is removed from `PendingBalance`
-- Calling again does not subtract again
+- Withdrawal request moves balance from available to pending.
+- Approve keeps amount pending.
+- Mark paid removes amount from pending.
+- Reject returns amount to available.
+- Repeat approve/reject/mark-paid calls should not duplicate balance changes.
 
 ## Authorization Checklist
 
-- Customer cannot create payment for another customer's campaign
-- Customer cannot submit proof for another customer's payment
-- Collaborator cannot access admin payment or withdrawal routes
-- Customer cannot access admin payment or withdrawal routes
-- Admin can approve/reject payments
-- Admin can approve/reject/mark-paid withdrawals
-- Internal routes require `X-Internal-Service-Key`
+- Customer cannot create payment for another customer's campaign.
+- Customer cannot submit proof for another customer's payment.
+- Collaborator cannot access admin payment, campaign, or withdrawal routes.
+- Customer cannot access admin payment or withdrawal routes.
+- Admin can approve and reject payments.
+- Admin can approve, reject, and mark withdrawals paid.
+- Internal routes require `X-Internal-Service-Key`.
 
-## Idempotency Checklist
+## Debug Swagger URLs
 
-- Approve a `PAID` campaign payment twice: no duplicate escrow or payment transactions
-- Approve an already-approved submission twice: no duplicate reward payment
-- Reject a withdrawal twice: no duplicate refund to available balance
-- Mark a withdrawal paid twice: no duplicate pending-balance subtraction
+- UserService: `https://<user-service-domain>/swagger`
+- SurveyService: `https://<survey-service-domain>/swagger`
+- WalletService: `https://<wallet-service-domain>/swagger`
 
-## Migration Commands
+Gateway Swagger JSON:
 
-```bash
-dotnet ef database update --project UserService --startup-project UserService
-dotnet ef database update --project SurveyService --startup-project SurveyService
-dotnet ef database update --project WalletService --startup-project WalletService
-```
-
-## Known Notes
-
-- Manual campaign payment does not integrate a real payment gateway.
-- Withdrawal does not integrate a real bank transfer.
-- Internal Form Builder, Notification, and API Gateway are outside this stabilization pass.
+- `/user/swagger/v1/swagger.json`
+- `/survey/swagger/v1/swagger.json`
+- `/wallet/swagger/v1/swagger.json`

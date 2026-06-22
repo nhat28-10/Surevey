@@ -1,8 +1,23 @@
-# SurveyWeb Deploy Notes
+# SurveyWeb Deployment Guide
+
+## Target
+
+Deploy 4 Docker-compatible web services:
+
+- `UserService`
+- `SurveyService`
+- `WalletService`
+- `ApiGateway`
+
+Tester entrypoint:
+
+```text
+https://<api-gateway-domain>/swagger
+```
 
 ## Local Run
 
-Run these from `backend/SurveyWeb` in four terminals:
+Run from `backend/SurveyWeb` in 4 terminals:
 
 ```powershell
 dotnet run --project UserService\UserService.csproj --launch-profile http
@@ -11,18 +26,119 @@ dotnet run --project WalletService\WalletService.csproj --launch-profile http
 dotnet run --project ApiGateway\ApiGateway.csproj --launch-profile http
 ```
 
-Local URLs from the current `launchSettings.json` files:
+Local URLs:
 
 - UserService: `http://localhost:5178`
 - SurveyService: `http://localhost:5159`
 - WalletService: `http://localhost:5258`
 - ApiGateway: `http://localhost:5088`
 
-The gateway local fallback in `ApiGateway/appsettings.Development.json` matches those service ports.
+Local Gateway Swagger:
 
-## ApiGateway Environment Variables
+```text
+http://localhost:5088/swagger
+```
 
-Set these in production or any non-development deployment:
+Health checks:
+
+- `http://localhost:5178/health`
+- `http://localhost:5159/health`
+- `http://localhost:5258/health`
+- `http://localhost:5088/health`
+
+## PostgreSQL Online
+
+Create a PostgreSQL database on Neon or another hosted provider. Copy the pooled or direct connection string and set it as an environment variable.
+
+Single shared database option:
+
+```text
+ConnectionStrings__DefaultConnection=Host=...;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true
+```
+
+Separate database option:
+
+```text
+ConnectionStrings__DefaultConnection=<user-db-connection-string>
+ConnectionStrings__SurveyServiceConnection=<survey-db-connection-string>
+ConnectionStrings__WalletServiceConnection=<wallet-db-connection-string>
+```
+
+`SurveyService` and `WalletService` fall back to `ConnectionStrings__DefaultConnection` if their service-specific connection string is not set.
+
+## Common Env
+
+Set on every service:
+
+```text
+ASPNETCORE_ENVIRONMENT=Production
+ENABLE_SWAGGER=true
+Jwt__Key=replace-with-long-secret-at-least-32-characters
+Jwt__Issuer=SureSurvey
+Jwt__Audience=SureSurvey
+InternalService__ApiKey=replace-with-internal-api-key
+Cors__AllowedOrigins__0=http://localhost:3000
+Cors__AllowedOrigins__1=https://replace-frontend-domain
+```
+
+Render normally provides `PORT`. The apps also respect `ASPNETCORE_URLS`.
+
+## Deploy Order
+
+1. Deploy `UserService`.
+2. Deploy `SurveyService`.
+3. Deploy `WalletService`.
+4. Deploy `ApiGateway`.
+
+After deploying the first 3 services, copy their public URLs into `ApiGateway` env variables.
+
+## Dockerfile Paths
+
+Build from `backend/SurveyWeb`:
+
+```powershell
+docker build -f UserService/Dockerfile -t surveyweb-user-service .
+docker build -f SurveyService/Dockerfile -t surveyweb-survey-service .
+docker build -f WalletService/Dockerfile -t surveyweb-wallet-service .
+docker build -f ApiGateway/Dockerfile -t surveyweb-api-gateway .
+```
+
+Render service Dockerfile paths:
+
+- `UserService/Dockerfile`
+- `SurveyService/Dockerfile`
+- `WalletService/Dockerfile`
+- `ApiGateway/Dockerfile`
+
+## Service Env
+
+UserService:
+
+```text
+ConnectionStrings__DefaultConnection=<user-postgres-connection-string>
+Authentication__Google__ClientId=<google-client-id>
+Authentication__Google__ClientSecret=<google-client-secret>
+```
+
+SurveyService:
+
+```text
+ConnectionStrings__DefaultConnection=<survey-postgres-connection-string>
+ServiceUrls__WalletService=https://<wallet-service-domain>
+```
+
+WalletService:
+
+```text
+ConnectionStrings__DefaultConnection=<wallet-postgres-connection-string>
+ServiceUrls__SurveyService=https://<survey-service-domain>
+ManualPayment__BankName=<bank-name>
+ManualPayment__BankAccountName=<bank-account-name>
+ManualPayment__BankAccountNumber=<bank-account-number>
+ManualPayment__QrImageUrl=<qr-image-url>
+```
+
+ApiGateway:
 
 ```text
 ServiceUrls__UserService=https://<user-service-domain>
@@ -30,71 +146,56 @@ ServiceUrls__SurveyService=https://<survey-service-domain>
 ServiceUrls__WalletService=https://<wallet-service-domain>
 ```
 
-Optional CORS origins for frontend deployments:
+## Migration
 
-```text
-Cors__AllowedOrigins__0=https://<frontend-domain>
-Cors__AllowedOrigins__1=http://localhost:3000
-Cors__AllowedOrigins__2=http://localhost:5173
+Install or update EF CLI if needed:
+
+```powershell
+dotnet tool install --global dotnet-ef
+dotnet tool update --global dotnet-ef
 ```
 
-For platforms that provide a dynamic port, set `PORT`. If the platform uses ASP.NET Core conventions, `ASPNETCORE_URLS` also works.
+Run migrations from `backend/SurveyWeb` after setting the correct connection string env for each service:
 
-## Deploy Services
+```powershell
+dotnet ef database update --project UserService --startup-project UserService
+dotnet ef database update --project SurveyService --startup-project SurveyService
+dotnet ef database update --project WalletService --startup-project WalletService
+```
 
-Deploy each backend service separately and keep its own required environment variables and database settings:
+Do not rely on production startup to run migrations automatically.
 
-- `UserService/UserService.csproj`
-- `SurveyService/SurveyService.csproj`
-- `WalletService/WalletService.csproj`
+## Swagger
 
-After each service is deployed, verify its debug Swagger if exposed:
+Each service exposes Swagger when `ENABLE_SWAGGER=true`:
 
 - UserService: `https://<user-service-domain>/swagger`
 - SurveyService: `https://<survey-service-domain>/swagger`
 - WalletService: `https://<wallet-service-domain>/swagger`
 
-## Deploy ApiGateway
-
-Build the gateway container from the solution root:
-
-```powershell
-docker build -f ApiGateway/Dockerfile -t surveyweb-api-gateway .
-```
-
-Run locally with deployed or local service URLs:
-
-```powershell
-docker run --rm -p 8080:8080 `
-  -e PORT=8080 `
-  -e ServiceUrls__UserService=http://host.docker.internal:5178 `
-  -e ServiceUrls__SurveyService=http://host.docker.internal:5159 `
-  -e ServiceUrls__WalletService=http://host.docker.internal:5258 `
-  surveyweb-api-gateway
-```
-
-For production, deploy `ApiGateway/Dockerfile` and set the three `ServiceUrls__...` variables to the deployed service domains. Do not rely on localhost in production.
-
-## Gateway Swagger
-
-Use one Swagger UI after deploy:
+Gateway Swagger:
 
 ```text
-https://<gateway-domain>/swagger
+https://<api-gateway-domain>/swagger
 ```
 
-The gateway exposes service Swagger JSON through:
+Gateway proxied Swagger JSON:
 
-- `https://<gateway-domain>/user/swagger/v1/swagger.json`
-- `https://<gateway-domain>/survey/swagger/v1/swagger.json`
-- `https://<gateway-domain>/wallet/swagger/v1/swagger.json`
+- `https://<api-gateway-domain>/user/swagger/v1/swagger.json`
+- `https://<api-gateway-domain>/survey/swagger/v1/swagger.json`
+- `https://<api-gateway-domain>/wallet/swagger/v1/swagger.json`
 
-JWT Bearer tokens entered in Swagger Authorize are sent as the `Authorization` header and are forwarded by the gateway to the downstream services.
-
-## Health Check
+The Gateway forwards the `Authorization` header to downstream services. Use the Swagger Authorize button with:
 
 ```text
-GET https://<gateway-domain>/health
+Bearer <jwt-token>
 ```
 
-Expected response: `200 OK`.
+## Final Checklist
+
+- All 4 services return `200 OK` from `/health`.
+- User/Survey/Wallet service Swagger pages load when `ENABLE_SWAGGER=true`.
+- ApiGateway `/swagger` dropdown shows `UserService API`, `SurveyService API`, and `WalletService API`.
+- ApiGateway env points to public service URLs, not localhost.
+- JWT settings and internal service API key match across services.
+- Migrations have been run against the deployed PostgreSQL database.
