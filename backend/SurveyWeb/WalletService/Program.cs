@@ -54,6 +54,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IWalletFlowService, WalletFlowService>();
+builder.Services.AddHttpClient<ISurveyServiceClient, SurveyServiceClient>((serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["Services:SurveyServiceBaseUrl"];
+    if (!string.IsNullOrWhiteSpace(baseUrl))
+    {
+        client.BaseAddress = new Uri(baseUrl);
+    }
+});
 
 builder.Services.AddSwaggerGen(c =>
 {

@@ -22,11 +22,17 @@ public class CreateCampaignRequest
     [MaxLength(1000)]
     public string? GoogleFormUrl { get; set; }
 
-    [Range(0.01, double.MaxValue)]
+    [Range(0, double.MaxValue)]
     public decimal RewardPerResponse { get; set; }
 
     [Range(1, int.MaxValue)]
     public int TargetResponses { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int AnswerCount { get; set; }
+
+    [Range(0.01, double.MaxValue)]
+    public decimal UnitPricePerAnswer { get; set; }
 
     public DateTime Deadline { get; set; }
 

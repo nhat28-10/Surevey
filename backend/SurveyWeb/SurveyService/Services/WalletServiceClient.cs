@@ -19,6 +19,23 @@ public class WalletServiceClient : IWalletServiceClient
         await PostAsync("api/internal/wallets/campaigns/escrow", request);
     }
 
+    public async Task<CampaignPaymentStatusWalletResponse> GetCampaignPaymentStatusAsync(int campaignId, int customerId)
+    {
+        AddInternalKey();
+        var response = await _httpClient.GetAsync($"api/internal/wallets/campaigns/{campaignId}/payment-status?customerId={customerId}");
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<CampaignPaymentStatusWalletResponse>();
+            return result ?? new CampaignPaymentStatusWalletResponse();
+        }
+
+        var message = await ReadErrorMessageAsync(response);
+        var statusCode = response.StatusCode == HttpStatusCode.NotFound
+            ? StatusCodes.Status404NotFound
+            : StatusCodes.Status400BadRequest;
+        throw new ApiException(statusCode, $"WalletService error: {message}");
+    }
+
     public async Task<PayRewardWalletResponse> PayRewardAsync(PayRewardWalletRequest request)
     {
         return await PostAsync<PayRewardWalletResponse>("api/internal/wallets/submissions/reward", request);

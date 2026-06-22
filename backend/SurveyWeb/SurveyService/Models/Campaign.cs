@@ -21,6 +21,13 @@ public class Campaign
     public string? RejectReason { get; set; }
     public bool IsEscrowed { get; set; }
     public DateTime? EscrowedAt { get; set; }
+    public CampaignPaymentStatus PaymentStatus { get; set; } = CampaignPaymentStatus.UNPAID;
+    public int? PaymentId { get; set; }
+    public decimal RewardBudget { get; set; }
+    public decimal PlatformFeeAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public int AnswerCount { get; set; }
+    public decimal UnitPricePerAnswer { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

@@ -1,1 +1,5 @@
-appsettings.Development.json
+SurveyWeb/*/appsettings.json
+SurveyWeb/*/appsettings.Development.json
+bin/
+obj/
+.vs/

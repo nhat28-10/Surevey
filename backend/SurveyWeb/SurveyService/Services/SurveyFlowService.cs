@@ -25,6 +25,9 @@ public class SurveyFlowService : ISurveyFlowService
         ValidateCampaignRequest(request);
 
         var now = DateTime.UtcNow;
+        var calculatedRewardPerResponse = request.AnswerCount * request.UnitPricePerAnswer;
+        var rewardBudget = request.TargetResponses * calculatedRewardPerResponse;
+        var platformFeeAmount = rewardBudget * 0.20m;
         var campaign = new Campaign
         {
             CustomerId = _currentUser.UserId,
@@ -34,11 +37,17 @@ public class SurveyFlowService : ISurveyFlowService
             CampaignType = request.CampaignType,
             GoogleFormUrl = string.IsNullOrWhiteSpace(request.GoogleFormUrl) ? null : request.GoogleFormUrl.Trim(),
             ConfirmationCode = GenerateConfirmationCode(),
-            RewardPerResponse = request.RewardPerResponse,
+            RewardPerResponse = calculatedRewardPerResponse,
             TargetResponses = request.TargetResponses,
+            AnswerCount = request.AnswerCount,
+            UnitPricePerAnswer = request.UnitPricePerAnswer,
+            RewardBudget = rewardBudget,
+            PlatformFeeAmount = platformFeeAmount,
+            TotalAmount = rewardBudget + platformFeeAmount,
             Deadline = request.Deadline.ToUniversalTime(),
             Category = request.Category.Trim(),
             Status = CampaignStatus.DRAFT,
+            PaymentStatus = CampaignPaymentStatus.PAYMENT_PENDING,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -101,16 +110,10 @@ public class SurveyFlowService : ISurveyFlowService
 
         if (!campaign.IsEscrowed)
         {
-            await _walletServiceClient.EscrowCampaignAsync(new EscrowCampaignWalletRequest
+            if (campaign.PaymentStatus != CampaignPaymentStatus.PAID)
             {
-                CampaignId = campaign.Id,
-                CustomerId = campaign.CustomerId,
-                RewardPerResponse = campaign.RewardPerResponse,
-                TargetResponses = campaign.TargetResponses,
-                Description = $"Escrow budget for campaign {campaign.Id}"
-            });
-            campaign.IsEscrowed = true;
-            campaign.EscrowedAt = DateTime.UtcNow;
+                throw BadRequest("Campaign payment must be verified before submitting for review.");
+            }
         }
 
         campaign.Status = CampaignStatus.PENDING_REVIEW;
@@ -118,6 +121,34 @@ public class SurveyFlowService : ISurveyFlowService
         campaign.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
+        return ToCampaignDto(campaign);
+    }
+
+    public async Task<CampaignDto> MarkCampaignPaidAsync(int campaignId, MarkCampaignPaidRequest request)
+    {
+        ValidateMarkCampaignPaidRequest(request);
+        var campaign = await FindCampaignAsync(campaignId);
+        var now = DateTime.UtcNow;
+        var rewardPerResponse = request.AnswerCount * request.UnitPricePerAnswer;
+        var expectedRewardBudget = campaign.TargetResponses * rewardPerResponse;
+        if (request.RewardBudget != expectedRewardBudget)
+        {
+            throw BadRequest("RewardBudget must equal campaign TargetResponses * AnswerCount * UnitPricePerAnswer.");
+        }
+
+        campaign.PaymentStatus = CampaignPaymentStatus.PAID;
+        campaign.PaymentId = request.PaymentId;
+        campaign.RewardBudget = request.RewardBudget;
+        campaign.PlatformFeeAmount = request.PlatformFeeAmount;
+        campaign.TotalAmount = request.TotalAmount;
+        campaign.AnswerCount = request.AnswerCount;
+        campaign.UnitPricePerAnswer = request.UnitPricePerAnswer;
+        campaign.RewardPerResponse = rewardPerResponse;
+        campaign.IsEscrowed = true;
+        campaign.EscrowedAt ??= now;
+        campaign.UpdatedAt = now;
+
+        await _dbContext.SaveChangesAsync();
         return ToCampaignDto(campaign);
     }
 
@@ -492,6 +523,45 @@ public class SurveyFlowService : ISurveyFlowService
         {
             throw BadRequest("Campaign deadline must be in the future.");
         }
+
+        if (request.AnswerCount <= 0)
+        {
+            throw BadRequest("AnswerCount must be greater than 0.");
+        }
+
+        if (request.UnitPricePerAnswer <= 0)
+        {
+            throw BadRequest("UnitPricePerAnswer must be greater than 0.");
+        }
+
+        var calculatedRewardPerResponse = request.AnswerCount * request.UnitPricePerAnswer;
+        if (request.RewardPerResponse > 0 && request.RewardPerResponse != calculatedRewardPerResponse)
+        {
+            throw BadRequest("RewardPerResponse must equal AnswerCount * UnitPricePerAnswer.");
+        }
+    }
+
+    private static void ValidateMarkCampaignPaidRequest(MarkCampaignPaidRequest request)
+    {
+        if (request.PaymentId <= 0)
+        {
+            throw BadRequest("PaymentId must be greater than 0.");
+        }
+
+        if (request.AnswerCount <= 0)
+        {
+            throw BadRequest("AnswerCount must be greater than 0.");
+        }
+
+        if (request.UnitPricePerAnswer <= 0)
+        {
+            throw BadRequest("UnitPricePerAnswer must be greater than 0.");
+        }
+
+        if (request.RewardBudget <= 0 || request.TotalAmount <= 0)
+        {
+            throw BadRequest("Payment amounts must be greater than 0.");
+        }
     }
 
     private async Task<Campaign> FindCampaignAsync(int campaignId)
@@ -551,6 +621,13 @@ public class SurveyFlowService : ISurveyFlowService
             RejectReason = campaign.RejectReason,
             IsEscrowed = campaign.IsEscrowed,
             EscrowedAt = campaign.EscrowedAt,
+            PaymentStatus = campaign.PaymentStatus,
+            PaymentId = campaign.PaymentId,
+            RewardBudget = campaign.RewardBudget,
+            PlatformFeeAmount = campaign.PlatformFeeAmount,
+            TotalAmount = campaign.TotalAmount,
+            AnswerCount = campaign.AnswerCount,
+            UnitPricePerAnswer = campaign.UnitPricePerAnswer,
             CreatedAt = campaign.CreatedAt,
             UpdatedAt = campaign.UpdatedAt
         };

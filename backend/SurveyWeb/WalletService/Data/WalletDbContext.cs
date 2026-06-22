@@ -12,6 +12,8 @@ public class WalletDbContext : DbContext
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<CampaignEscrow> CampaignEscrows => Set<CampaignEscrow>();
+    public DbSet<CampaignPayment> CampaignPayments => Set<CampaignPayment>();
+    public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +51,47 @@ public class WalletDbContext : DbContext
             entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
             entity.Property(e => e.RemainingAmount).HasPrecision(18, 2);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<CampaignPayment>(entity =>
+        {
+            entity.HasIndex(p => p.CampaignId);
+            entity.HasIndex(p => p.CustomerId);
+            entity.HasIndex(p => p.PaymentCode).IsUnique();
+            entity.HasIndex(p => p.Status);
+            entity.Property(p => p.PaymentCode).HasMaxLength(40);
+            entity.Property(p => p.UnitPricePerAnswer).HasPrecision(18, 2);
+            entity.Property(p => p.RewardPerResponse).HasPrecision(18, 2);
+            entity.Property(p => p.RewardBudget).HasPrecision(18, 2);
+            entity.Property(p => p.PlatformFeeRate).HasPrecision(5, 4);
+            entity.Property(p => p.PlatformFeeAmount).HasPrecision(18, 2);
+            entity.Property(p => p.TotalAmount).HasPrecision(18, 2);
+            entity.Property(p => p.BankName).HasMaxLength(120);
+            entity.Property(p => p.BankAccountName).HasMaxLength(160);
+            entity.Property(p => p.BankAccountNumber).HasMaxLength(80);
+            entity.Property(p => p.QrImageUrl).HasMaxLength(1000);
+            entity.Property(p => p.TransferContent).HasMaxLength(200);
+            entity.Property(p => p.ProofImageUrl).HasMaxLength(1000);
+            entity.Property(p => p.CustomerNote).HasMaxLength(1000);
+            entity.Property(p => p.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(p => p.RejectReason).HasMaxLength(1000);
+        });
+
+        modelBuilder.Entity<WithdrawalRequest>(entity =>
+        {
+            entity.HasIndex(w => w.CollaboratorId);
+            entity.HasIndex(w => w.Status);
+            entity.Property(w => w.Amount).HasPrecision(18, 2);
+            entity.Property(w => w.BankName).HasMaxLength(120);
+            entity.Property(w => w.BankAccountName).HasMaxLength(160);
+            entity.Property(w => w.BankAccountNumber).HasMaxLength(80);
+            entity.Property(w => w.Status).HasConversion<string>().HasMaxLength(32);
+            entity.Property(w => w.AdminNote).HasMaxLength(1000);
+            entity.Property(w => w.RejectReason).HasMaxLength(1000);
+            entity.HasOne(w => w.Wallet)
+                .WithMany(w => w.WithdrawalRequests)
+                .HasForeignKey(w => w.WalletId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
