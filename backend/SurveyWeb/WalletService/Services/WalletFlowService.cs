@@ -261,6 +261,11 @@ public class WalletFlowService : IWalletFlowService
         ValidateQuoteRequest(request);
 
         var customerId = _currentUser.UserId;
+        if (!await _surveyServiceClient.IsCampaignOwnerAsync(campaignId, customerId))
+        {
+            throw new ApiException(StatusCodes.Status403Forbidden, "You can only create payments for your own campaign.");
+        }
+
         var existingPayment = await _dbContext.CampaignPayments
             .Where(p => p.CampaignId == campaignId && p.CustomerId == customerId)
             .OrderByDescending(p => p.CreatedAt)

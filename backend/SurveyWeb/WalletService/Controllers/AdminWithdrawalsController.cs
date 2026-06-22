@@ -19,6 +19,7 @@ public class AdminWithdrawalsController : ApiControllerBase
     }
 
     [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<WithdrawalDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWithdrawals([FromQuery] WithdrawalStatus? status)
     {
         try
@@ -32,6 +33,7 @@ public class AdminWithdrawalsController : ApiControllerBase
     }
 
     [HttpPost("{id:int}/approve")]
+    [ProducesResponseType(typeof(WithdrawalDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Approve(int id, [FromBody] ReviewWithdrawalRequest request)
     {
         try
@@ -45,6 +47,7 @@ public class AdminWithdrawalsController : ApiControllerBase
     }
 
     [HttpPost("{id:int}/reject")]
+    [ProducesResponseType(typeof(WithdrawalDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Reject(int id, [FromBody] ReviewWithdrawalRequest request)
     {
         try
@@ -58,6 +61,7 @@ public class AdminWithdrawalsController : ApiControllerBase
     }
 
     [HttpPost("{id:int}/mark-paid")]
+    [ProducesResponseType(typeof(WithdrawalDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkPaid(int id, [FromBody] ReviewWithdrawalRequest request)
     {
         try

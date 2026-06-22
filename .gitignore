@@ -3,4 +3,4 @@ backend/SurveyWeb/*/appsettings.Development.json
 backend/SurveyWeb/**/bin/
 backend/SurveyWeb/**/obj/
 backend/SurveyWeb/.vs/
-SurveyWeb/
+/SurveyWeb/

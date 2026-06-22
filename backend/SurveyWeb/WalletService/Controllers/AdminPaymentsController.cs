@@ -19,6 +19,7 @@ public class AdminPaymentsController : ApiControllerBase
     }
 
     [HttpGet("payments")]
+    [ProducesResponseType(typeof(IReadOnlyList<CampaignPaymentDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPayments([FromQuery] CampaignPaymentStatus? status)
     {
         try
@@ -32,6 +33,7 @@ public class AdminPaymentsController : ApiControllerBase
     }
 
     [HttpGet("payments/{paymentId:int}")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPayment(int paymentId)
     {
         try
@@ -45,6 +47,7 @@ public class AdminPaymentsController : ApiControllerBase
     }
 
     [HttpPost("payments/{paymentId:int}/approve")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ApprovePayment(int paymentId)
     {
         try
@@ -58,6 +61,7 @@ public class AdminPaymentsController : ApiControllerBase
     }
 
     [HttpPost("payments/{paymentId:int}/reject")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> RejectPayment(int paymentId, [FromBody] RejectPaymentRequest request)
     {
         try
@@ -71,6 +75,7 @@ public class AdminPaymentsController : ApiControllerBase
     }
 
     [HttpGet("revenue-summary")]
+    [ProducesResponseType(typeof(AdminRevenueSummaryDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRevenueSummary()
     {
         try

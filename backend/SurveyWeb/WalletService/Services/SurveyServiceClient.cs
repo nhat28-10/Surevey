@@ -14,6 +14,23 @@ public class SurveyServiceClient : ISurveyServiceClient
         _configuration = configuration;
     }
 
+    public async Task<bool> IsCampaignOwnerAsync(int campaignId, int customerId)
+    {
+        AddInternalKey();
+        var response = await _httpClient.GetAsync($"api/internal/campaigns/{campaignId}/ownership?customerId={customerId}");
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<CampaignOwnershipSurveyResponse>();
+            return result?.IsOwner == true;
+        }
+
+        var message = await ReadErrorMessageAsync(response);
+        var statusCode = response.StatusCode == HttpStatusCode.NotFound
+            ? StatusCodes.Status404NotFound
+            : StatusCodes.Status400BadRequest;
+        throw new ApiException(statusCode, $"SurveyService error: {message}");
+    }
+
     public async Task MarkCampaignPaidAsync(MarkCampaignPaidSurveyRequest request)
     {
         AddInternalKey();
@@ -69,4 +86,11 @@ public class SurveyServiceClient : ISurveyServiceClient
 
         return body;
     }
+}
+
+public class CampaignOwnershipSurveyResponse
+{
+    public int CampaignId { get; set; }
+    public int CustomerId { get; set; }
+    public bool IsOwner { get; set; }
 }

@@ -92,6 +92,17 @@ public class SurveyFlowService : ISurveyFlowService
         return ToCampaignDto(campaign);
     }
 
+    public async Task<CampaignOwnershipDto> CheckCampaignOwnershipAsync(int campaignId, int customerId)
+    {
+        var campaign = await FindCampaignAsync(campaignId);
+        return new CampaignOwnershipDto
+        {
+            CampaignId = campaign.Id,
+            CustomerId = customerId,
+            IsOwner = campaign.CustomerId == customerId
+        };
+    }
+
     public async Task<CampaignDto> SubmitCampaignForReviewAsync(int campaignId)
     {
         RequireRole("Customer");
@@ -131,6 +142,13 @@ public class SurveyFlowService : ISurveyFlowService
         var now = DateTime.UtcNow;
         var rewardPerResponse = request.AnswerCount * request.UnitPricePerAnswer;
         var expectedRewardBudget = campaign.TargetResponses * rewardPerResponse;
+        if (campaign.PaymentStatus == CampaignPaymentStatus.PAID
+            && campaign.PaymentId.HasValue
+            && campaign.PaymentId.Value != request.PaymentId)
+        {
+            throw BadRequest("Campaign was already marked paid by another payment.");
+        }
+
         if (request.RewardBudget != expectedRewardBudget)
         {
             throw BadRequest("RewardBudget must equal campaign TargetResponses * AnswerCount * UnitPricePerAnswer.");
