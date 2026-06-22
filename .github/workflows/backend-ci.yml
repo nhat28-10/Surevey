@@ -1,0 +1,39 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "backend/SurveyWeb/**"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/SurveyWeb/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  build:
+    name: Restore and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend/SurveyWeb
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        run: dotnet restore SurveyWeb.sln
+
+      - name: Build
+        run: dotnet build SurveyWeb.sln --configuration Release --no-restore
