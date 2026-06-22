@@ -17,6 +17,7 @@ public class PaymentsController : ApiControllerBase
 
     [Authorize(Roles = "Customer")]
     [HttpPost("api/payments/campaign-quote")]
+    [ProducesResponseType(typeof(CampaignQuoteResponse), StatusCodes.Status200OK)]
     public IActionResult GetCampaignQuote([FromBody] CampaignQuoteRequest request)
     {
         try
@@ -31,6 +32,7 @@ public class PaymentsController : ApiControllerBase
 
     [Authorize(Roles = "Customer")]
     [HttpPost("api/campaigns/{campaignId:int}/payments")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> CreateCampaignPayment(int campaignId, [FromBody] CreateCampaignPaymentRequest request)
     {
         try
@@ -45,6 +47,7 @@ public class PaymentsController : ApiControllerBase
 
     [Authorize(Roles = "Customer")]
     [HttpPost("api/payments/{paymentId:int}/proof")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> SubmitPaymentProof(int paymentId, [FromBody] SubmitPaymentProofRequest request)
     {
         try

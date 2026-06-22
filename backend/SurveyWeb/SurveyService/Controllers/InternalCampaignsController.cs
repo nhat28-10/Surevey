@@ -17,7 +17,25 @@ public class InternalCampaignsController : ApiControllerBase
         _surveyFlowService = surveyFlowService;
     }
 
+    [HttpGet("{campaignId:int}/ownership")]
+    [ProducesResponseType(typeof(CampaignOwnershipDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CheckOwnership(int campaignId, [FromQuery] int customerId)
+    {
+        var unauthorized = ValidateInternalKey();
+        if (unauthorized != null) return unauthorized;
+
+        try
+        {
+            return Ok(await _surveyFlowService.CheckCampaignOwnershipAsync(campaignId, customerId));
+        }
+        catch (ApiException ex)
+        {
+            return HandleApiException(ex);
+        }
+    }
+
     [HttpPost("{campaignId:int}/mark-paid")]
+    [ProducesResponseType(typeof(CampaignDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkPaid(int campaignId, [FromBody] MarkCampaignPaidRequest request)
     {
         var unauthorized = ValidateInternalKey();

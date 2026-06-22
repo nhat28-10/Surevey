@@ -18,6 +18,7 @@ public class WithdrawalsController : ApiControllerBase
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(WithdrawalDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Create([FromBody] CreateWithdrawalRequest request)
     {
         try
@@ -31,6 +32,7 @@ public class WithdrawalsController : ApiControllerBase
     }
 
     [HttpGet("me")]
+    [ProducesResponseType(typeof(IReadOnlyList<WithdrawalDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> MyWithdrawals()
     {
         try

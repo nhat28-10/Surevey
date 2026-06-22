@@ -2,6 +2,7 @@ namespace WalletService.Services;
 
 public interface ISurveyServiceClient
 {
+    Task<bool> IsCampaignOwnerAsync(int campaignId, int customerId);
     Task MarkCampaignPaidAsync(MarkCampaignPaidSurveyRequest request);
 }
 
