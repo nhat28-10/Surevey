@@ -19,6 +19,16 @@ public class PayRewardWalletRequest
     public string? Description { get; set; }
 }
 
+public class CampaignPaymentStatusWalletResponse
+{
+    public int CampaignId { get; set; }
+    public int CustomerId { get; set; }
+    public bool HasPaidPayment { get; set; }
+    public int? PaymentId { get; set; }
+    public string? Status { get; set; }
+    public decimal? RewardBudget { get; set; }
+}
+
 public class PayRewardWalletResponse
 {
     public bool AlreadyPaid { get; set; }

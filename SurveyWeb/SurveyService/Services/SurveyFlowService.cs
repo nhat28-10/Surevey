@@ -101,14 +101,13 @@ public class SurveyFlowService : ISurveyFlowService
 
         if (!campaign.IsEscrowed)
         {
-            await _walletServiceClient.EscrowCampaignAsync(new EscrowCampaignWalletRequest
+            var paymentStatus = await _walletServiceClient.GetCampaignPaymentStatusAsync(campaign.Id, campaign.CustomerId);
+            var requiredRewardBudget = campaign.RewardPerResponse * campaign.TargetResponses;
+            if (!paymentStatus.HasPaidPayment || paymentStatus.RewardBudget.GetValueOrDefault() < requiredRewardBudget)
             {
-                CampaignId = campaign.Id,
-                CustomerId = campaign.CustomerId,
-                RewardPerResponse = campaign.RewardPerResponse,
-                TargetResponses = campaign.TargetResponses,
-                Description = $"Escrow budget for campaign {campaign.Id}"
-            });
+                throw BadRequest("Campaign manual payment must be approved before submitting for review.");
+            }
+
             campaign.IsEscrowed = true;
             campaign.EscrowedAt = DateTime.UtcNow;
         }

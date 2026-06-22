@@ -33,6 +33,22 @@ public class InternalWalletsController : ApiControllerBase
         }
     }
 
+    [HttpGet("campaigns/{campaignId:int}/payment-status")]
+    public async Task<IActionResult> GetCampaignPaymentStatus(int campaignId, [FromQuery] int customerId)
+    {
+        var unauthorized = ValidateInternalKey();
+        if (unauthorized != null) return unauthorized;
+
+        try
+        {
+            return Ok(await _walletFlowService.GetCampaignPaymentStatusAsync(campaignId, customerId));
+        }
+        catch (ApiException ex)
+        {
+            return HandleApiException(ex);
+        }
+    }
+
     [HttpPost("submissions/reward")]
     public async Task<IActionResult> PayReward([FromBody] PayRewardRequest request)
     {
