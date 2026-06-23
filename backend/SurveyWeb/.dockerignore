@@ -3,4 +3,15 @@
 .vs/
 .git/
 *.user
+*.suo
+*.userosscache
+*.sln.docstates
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+**/appsettings.Production.json
 **/appsettings.Development.json
+**/secrets.json
