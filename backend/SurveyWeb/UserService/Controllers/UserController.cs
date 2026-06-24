@@ -17,12 +17,21 @@ public class UserController : ControllerBase
     private readonly IUserService _userService;
     private readonly MyDbContext _dbContext;
     private readonly JwtService _jwtService;
+    private readonly OtpService _otpService;
+    private readonly EmailService _emailService;
 
-    public UserController(IUserService userService, MyDbContext dbContext, JwtService jwtService)
+    public UserController(
+        IUserService userService,
+        MyDbContext dbContext,
+        JwtService jwtService,
+        OtpService otpService,
+        EmailService emailService)
     {
         _userService = userService;
         _dbContext = dbContext;
         _jwtService = jwtService;
+        _otpService = otpService;
+        _emailService = emailService;
     }
 
     // ─────────────────────────────────────────────
@@ -43,37 +52,59 @@ public class UserController : ControllerBase
     }
 
     // ─────────────────────────────────────────────
-    // ĐĂNG NHẬP thường → trả JWT
+    // ĐĂNG NHẬP bước 1: email + password → gửi OTP
+    // POST /api/user/login
     // ─────────────────────────────────────────────
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest login)
+    public async Task<IActionResult> Login([FromBody] LoginRequest login)
     {
         try
         {
-            var user = _userService.ValidateUser(login.UserName, login.Password);
-            if (user == null)
-                return Unauthorized(new { message = "Sai tên đăng nhập hoặc mật khẩu" });
+            // Validate email + password (ném exception nếu sai)
+            var user = _userService.ValidateUser(login.Email, login.Password);
 
-            var token = _jwtService.GenerateToken(user);
-            return Ok(new
-            {
-                message = "Đăng nhập thành công",
-                token,
-                user = new
-                {
-                    user.UserId,
-                    user.UserName,
-                    user.Email,
-                    user.FullName,
-                    user.AvatarUrl,
-                    Role = user.Role!.RoleName
-                }
-            });
+            // Sinh OTP và gửi về email
+            var otp = await _otpService.GenerateAndStoreAsync(login.Email);
+            await _emailService.SendOtpAsync(login.Email, otp);
+
+            return Ok(new { message = "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và xác nhận." });
         }
         catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    // ─────────────────────────────────────────────
+    // ĐĂNG NHẬP bước 2: xác minh OTP → trả JWT
+    // POST /api/user/verify-otp
+    // ─────────────────────────────────────────────
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request)
+    {
+        var isValid = await _otpService.VerifyAsync(request.Email, request.Otp);
+        if (!isValid)
+            return BadRequest(new { message = "Mã OTP không hợp lệ hoặc đã hết hạn." });
+
+        var user = _userService.GetByEmail(request.Email);
+        if (user == null)
+            return NotFound(new { message = "Người dùng không tồn tại." });
+
+        var token = _jwtService.GenerateToken(user);
+        return Ok(new
+        {
+            message = "Đăng nhập thành công",
+            token,
+            user = new
+            {
+                user.UserId,
+                user.UserName,
+                user.Email,
+                user.FullName,
+                user.AvatarUrl,
+                Role = user.Role!.RoleName
+            }
+        });
     }
 
     // ─────────────────────────────────────────────
@@ -108,7 +139,6 @@ public class UserController : ControllerBase
         var user = await _userService.FindOrCreateGoogleUserAsync(googleId, email, fullName, avatarUrl);
         var token = _jwtService.GenerateToken(user);
 
-        // Trả token (frontend có thể redirect về app với token trong query hoặc cookie)
         return Ok(new
         {
             message = "Đăng nhập Google thành công",

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
 using UserService;
 using UserService.Repositories;
 using UserService.Services;
@@ -42,6 +43,10 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<MyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// ── Redis ────────────────────────────────────────────────────────────
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis")!));
+
 // ── CORS ────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
@@ -79,7 +84,6 @@ builder.Services.AddAuthentication(options =>
 {
     options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
     options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
-    // Lấy thêm avatar
     options.Scope.Add("profile");
     options.ClaimActions.MapJsonKey("urn:google:picture", "picture", "url");
     options.SaveTokens = true;
@@ -92,6 +96,8 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService.Services.UserService>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<OtpService>();
+builder.Services.AddScoped<EmailService>();
 
 var app = builder.Build();
 
@@ -114,7 +120,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseAuthentication(); // phải trước UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

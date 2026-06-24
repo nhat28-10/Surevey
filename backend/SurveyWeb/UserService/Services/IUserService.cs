@@ -11,7 +11,7 @@ public interface IUserService
     UserInfo GetUserInfo(int userId);
     void UpdateUser(UserInfo user);
     bool DeleteUser(int userId, out string errorMessage);
-    User ValidateUser(string username, string password);
+    User ValidateUser(string email, string password);
     Task<PagingResponse<UserInfo>> GetPagedAsync(PagingRequest request);
 
     // Google OAuth

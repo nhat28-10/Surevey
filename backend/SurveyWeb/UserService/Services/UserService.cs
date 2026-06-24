@@ -92,10 +92,10 @@ public class UserService : IUserService
         _userRepository.Save();
     }
 
-    public User ValidateUser(string username, string password)
+    public User ValidateUser(string email, string password)
     {
-        var user = _userRepository.GetByUserName(username);
-        if (user == null) throw new Exception("Tài khoản không tồn tại!");
+        var user = _userRepository.GetByEmail(email);
+        if (user == null) throw new Exception("Email không tồn tại!");
         if (string.IsNullOrEmpty(user.Password))
             throw new Exception("Tài khoản này được đăng ký bằng Google, vui lòng đăng nhập bằng Google.");
         if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
