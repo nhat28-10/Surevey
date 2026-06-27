@@ -27,8 +27,12 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Survey, SurveyFilters } from "../types/survey";
-import { getOpenSurveys } from "../services/surveyService";
-import { isAuthenticated } from "../services/authService";
+import {
+  getOpenSurveys,
+  addHelperFinishedSurvey,
+  completeSurvey,
+} from "../services/surveyService";
+import { isAuthenticated, getCurrentUser } from "../services/authService";
 
 export function HelperMarketplace() {
   const navigate = useNavigate();
@@ -334,6 +338,18 @@ export function HelperMarketplace() {
                         if (survey.surveyType === "internal") {
                           navigate(`/helper/survey/${survey.id}`);
                         } else {
+                          const user = getCurrentUser();
+                          if (user) {
+                            addHelperFinishedSurvey(user.id, {
+                              surveyId: survey.id,
+                              title: survey.title,
+                              surveyType: survey.surveyType,
+                              reward: survey.reward,
+                              finishedAt: new Date().toISOString(),
+                            });
+                            completeSurvey(survey.id);
+                            window.dispatchEvent(new Event("storage"));
+                          }
                           window.open(survey.surveyLink, "_blank");
                         }
                       }}

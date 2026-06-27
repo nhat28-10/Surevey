@@ -1,6 +1,6 @@
 // Model: Authentication Data Types
 
-export type UserRole = 'owner' | 'helper';
+export type UserRole = 'owner' | 'helper' | 'admin';
 
 export interface User {
   id: string;
@@ -8,6 +8,7 @@ export interface User {
   name: string;
   role: UserRole;
   createdAt: string;
+  password?: string; // only stored for seeded accounts (e.g. admin)
 }
 
 export interface LoginCredentials {

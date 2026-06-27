@@ -9,6 +9,8 @@ import {
   HelpCircle,
   LogOut,
   UserCircle,
+  CheckCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   getCurrentUser,
@@ -94,30 +96,57 @@ export function Layout() {
                   </Link>
                 </>
               ) : authenticated && currentUser?.role === "helper" ? (
+                <>
+                  <Link
+                    to="/helper/marketplace"
+                    className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
+                      isActive("/helper/marketplace")
+                        ? "bg-green-600 text-white"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <Search className="w-4 h-4" />
+                    Tìm khảo sát
+                  </Link>
+                  <Link
+                    to="/helper/finished"
+                    className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
+                      isActive("/helper/finished")
+                        ? "bg-green-600 text-white"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Đã hoàn thành
+                  </Link>
+                </>
+              ) : authenticated && currentUser?.role === "admin" ? (
                 <Link
-                  to="/helper/marketplace"
-                  className={`flex items-center px-2 py-1 rounded-md transition-colors ${
-                    isActive("/helper/marketplace")
+                  to="/admin/requests"
+                  className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
+                    isActive("/admin/requests")
                       ? "bg-green-600 text-white"
                       : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  <Search className="w-4 h-4" />
-                  Tìm khảo sát
+                  <ShieldCheck className="w-4 h-4" />
+                  Yêu cầu rút tiền
                 </Link>
               ) : null}
 
-              <Link
-                to="/support/faq"
-                className={`flex items-center px-2 py-1 rounded-md transition-colors ${
-                  isActive("/support/faq") || isActive("/support/tickets")
-                    ? "bg-green-600 text-white"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <HelpCircle className="w-4 h-4" />
-                Trợ giúp
-              </Link>
+              {currentUser?.role !== "admin" && (
+                <Link
+                  to="/support/faq"
+                  className={`flex items-center px-2 py-1 rounded-md transition-colors ${
+                    isActive("/support/faq") || isActive("/support/tickets")
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  Trợ giúp
+                </Link>
+              )}
             </nav>
 
             <div className="flex items-center gap-3 ml-auto">
@@ -128,14 +157,18 @@ export function Layout() {
                     <span>{currentUser.name}</span>
                     <Badge
                       className={`text-sm font-medium ${
-                        currentUser.role === "owner"
+                        currentUser.role === "admin"
                           ? "bg-blue-100 text-blue-800"
-                          : "bg-green-100 text-green-800"
+                          : currentUser.role === "owner"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-green-100 text-green-800"
                       }`}
                     >
-                      {currentUser.role === "owner"
-                        ? "Chủ khảo sát"
-                        : "Người làm khảo sát"}
+                      {currentUser.role === "admin"
+                        ? "Quản trị viên"
+                        : currentUser.role === "owner"
+                          ? "Chủ khảo sát"
+                          : "Người làm khảo sát"}
                     </Badge>
                   </div>
 
@@ -208,30 +241,57 @@ export function Layout() {
                 </Link>
               </>
             ) : authenticated && currentUser?.role === "helper" ? (
+              <>
+                <Link
+                  to="/helper/marketplace"
+                  className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
+                    isActive("/helper/marketplace")
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600"
+                  }`}
+                >
+                  <Search className="w-4 h-4" />
+                  Tìm kiếm
+                </Link>
+                <Link
+                  to="/helper/finished"
+                  className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
+                    isActive("/helper/finished")
+                      ? "bg-green-600 text-white"
+                      : "text-gray-600"
+                  }`}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Đã làm
+                </Link>
+              </>
+            ) : authenticated && currentUser?.role === "admin" ? (
               <Link
-                to="/helper/marketplace"
+                to="/admin/requests"
                 className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                  isActive("/helper/marketplace")
+                  isActive("/admin/requests")
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Yêu cầu
+              </Link>
+            ) : null}
+
+            {currentUser?.role !== "admin" && (
+              <Link
+                to="/support/faq"
+                className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
+                  isActive("/support/faq") || isActive("/support/tickets")
                     ? "bg-green-600 text-white"
                     : "text-gray-600"
                 }`}
               >
-                <Search className="w-4 h-4" />
-                Tìm kiếm
+                <HelpCircle className="w-4 h-4" />
+                Trợ giúp
               </Link>
-            ) : null}
-
-            <Link
-              to="/support/faq"
-              className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                isActive("/support/faq") || isActive("/support/tickets")
-                  ? "bg-green-600 text-white"
-                  : "text-gray-600"
-              }`}
-            >
-              <HelpCircle className="w-4 h-4" />
-              Trợ giúp
-            </Link>
+            )}
 
             {!authenticated && (
               <>

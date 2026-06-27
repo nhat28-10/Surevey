@@ -87,4 +87,12 @@ export interface SurveyFilters {
   sortBy?: 'reward' | 'time' | 'deadline';
 }
 
+export interface FinishedEntry {
+  surveyId: string;
+  title: string;
+  surveyType: SurveyType;
+  reward: number;
+  finishedAt: string; // ISO date
+}
+
 export type UserRole = 'owner' | 'helper';

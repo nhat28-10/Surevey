@@ -11,6 +11,8 @@ import { Login } from "./components/Login";
 import { Signup } from "./components/Signup";
 import { NotFound } from "./components/NotFound";
 import { SurveyDoing } from "./components/SurveyDoing";
+import { HelperFinishedSurveys } from "./components/HelperFinishedSurveys";
+import { AdminProcessRequests } from "./components/AdminProcessRequests";
 
 export const router = createBrowserRouter([
   {
@@ -48,6 +50,14 @@ export const router = createBrowserRouter([
       {
         path: "helper/survey/:surveyId",
         Component: SurveyDoing,
+      },
+      {
+        path: "helper/finished",
+        Component: HelperFinishedSurveys,
+      },
+      {
+        path: "admin/requests",
+        Component: AdminProcessRequests,
       },
       {
         path: "support/faq",

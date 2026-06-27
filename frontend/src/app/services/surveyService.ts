@@ -1,6 +1,6 @@
 // Controller: Survey Service for business logic and data management
 
-import { Survey, SurveyStatus, SurveyFilters, SurveyPackage, SURVEY_PACKAGES } from '../types/survey';
+import { Survey, SurveyStatus, SurveyFilters, SurveyPackage, SURVEY_PACKAGES, FinishedEntry } from '../types/survey';
 import { getCurrentUser as getAuthUser } from './authService';
 
 const STORAGE_KEY = 'sureVey_surveys';
@@ -157,6 +157,26 @@ export const deleteSurvey = (surveyId: string, ownerId: string): boolean => {
   const filtered = surveys.filter(s => s.id !== surveyId);
   saveSurveys(filtered);
   return true;
+};
+
+// ── Helper finished-surveys (per-user localStorage) ──
+
+const finishedKey = (helperId: string) => `sureVey_finished_${helperId}`;
+
+export const getHelperFinishedSurveys = (helperId: string): FinishedEntry[] => {
+  const stored = localStorage.getItem(finishedKey(helperId));
+  return stored ? JSON.parse(stored) : [];
+};
+
+export const addHelperFinishedSurvey = (helperId: string, entry: FinishedEntry): void => {
+  const entries = getHelperFinishedSurveys(helperId);
+  if (entries.some(e => e.surveyId === entry.surveyId)) return; // prevent duplicates
+  entries.unshift(entry); // newest first
+  localStorage.setItem(finishedKey(helperId), JSON.stringify(entries));
+};
+
+export const getTotalEarned = (helperId: string): number => {
+  return getHelperFinishedSurveys(helperId).reduce((sum, e) => sum + e.reward, 0);
 };
 
 // Sample data for initial load
