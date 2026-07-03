@@ -12,7 +12,12 @@ import {
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Progress } from "../components/ui/progress";
-import { getAllSurveys } from "../services/surveyService";
+import {
+  getAllSurveys,
+  addHelperFinishedSurvey,
+  completeSurvey,
+} from "../services/surveyService";
+import { getCurrentUser } from "../services/authService";
 import type { Survey, SurveyQuestion } from "../types/survey";
 
 type Answers = Record<string, string>;
@@ -64,7 +69,18 @@ export const SurveyDoing = () => {
   };
 
   const handleSubmit = () => {
-    // Submission logic goes here
+    const user = getCurrentUser();
+    if (user && survey) {
+      addHelperFinishedSurvey(user.id, {
+        surveyId: survey.id,
+        title: survey.title,
+        surveyType: survey.surveyType,
+        reward: survey.reward,
+        finishedAt: new Date().toISOString(),
+      });
+      completeSurvey(survey.id);
+      window.dispatchEvent(new Event("storage"));
+    }
     setSubmitted(true);
   };
 

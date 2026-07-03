@@ -5,10 +5,24 @@ import { User, LoginCredentials, SignupData } from '../types/auth';
 const USERS_STORAGE_KEY = 'sureVey_users';
 const CURRENT_USER_KEY = 'sureVey_currentUser';
 
-// Get all registered users
+// Get all registered users (seeds admin account on first run)
 const getAllUsers = (): User[] => {
   const stored = localStorage.getItem(USERS_STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  const users: User[] = stored ? JSON.parse(stored) : [];
+
+  if (!users.some(u => u.email === 'admin@gmail.com')) {
+    users.push({
+      id: 'admin_1',
+      email: 'admin@gmail.com',
+      name: 'Admin',
+      role: 'admin',
+      password: '123456',
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  }
+
+  return users;
 };
 
 // Save users to localStorage
@@ -58,17 +72,22 @@ export const signup = (data: SignupData): { success: boolean; error?: string; us
 export const login = (credentials: LoginCredentials): { success: boolean; error?: string; user?: User } => {
   const users = getAllUsers();
   
-  // Find user by email (simple check for MVP - no real password validation)
   const user = users.find(u => u.email === credentials.email);
-  
+
   if (!user) {
     return { success: false, error: 'Email hoặc mật khẩu không đúng' };
   }
+
+  // Validate password when stored (e.g. admin account)
+  if (user.password && user.password !== credentials.password) {
+    return { success: false, error: 'Email hoặc mật khẩu không đúng' };
+  }
+
+  // Strip password before storing in session
+  const { password: _pw, ...sessionUser } = user;
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
   
-  // Set current user
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  
-  return { success: true, user };
+  return { success: true, user: sessionUser };
 };
 
 // Logout user

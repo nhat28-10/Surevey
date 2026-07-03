@@ -35,7 +35,9 @@ export function Login() {
 
     if (result.success) {
       // Navigate based on role
-      if (result.user?.role === "owner") {
+      if (result.user?.role === "admin") {
+        navigate("/admin/requests");
+      } else if (result.user?.role === "owner") {
         navigate("/owner/dashboard");
       } else {
         navigate("/helper/marketplace");
