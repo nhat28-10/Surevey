@@ -28,22 +28,22 @@ export function Home() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
           {authenticated ? (
-            currentUser?.role === "owner" ? (
+            currentUser?.role === "customer" ? (
               <>
                 <Button asChild size="lg" className="bg-green-600">
-                  <Link to="/owner/post">Đăng khảo sát</Link>
+                  <Link to="/customer/post">Đăng khảo sát</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg">
-                  <Link to="/owner/dashboard">Xem khảo sát của tôi</Link>
+                  <Link to="/customer/dashboard">Xem khảo sát của tôi</Link>
                 </Button>
               </>
             ) : (
               <>
                 <Button asChild size="lg" className="bg-green-600">
-                  <Link to="/helper/marketplace">Tìm khảo sát</Link>
+                  <Link to="/collaborator/marketplace">Tìm khảo sát</Link>
                 </Button>
                 <Button asChild variant="outline" size="lg">
-                  <Link to="/owner/post">Trở thành chủ khảo sát</Link>
+                  <Link to="/customer/post">Trở thành chủ khảo sát</Link>
                 </Button>
               </>
             )
@@ -126,9 +126,9 @@ export function Home() {
                 <span>Hủy khảo sát trước khi chúng được bắt đầu</span>
               </li>
             </ul>
-            {authenticated && currentUser?.role !== "helper" && (
+            {authenticated && currentUser?.role !== "collaborator" && (
               <Button asChild className="w-full mt-4 bg-blue-600">
-                <Link to="/owner/post">Bắt đầu đăng khảo sát</Link>
+                <Link to="/customer/post">Bắt đầu đăng khảo sát</Link>
               </Button>
             )}
             {!authenticated && (
@@ -171,9 +171,9 @@ export function Home() {
                 <span>Được trả tiền cho ý kiến quý giá của bạn</span>
               </li>
             </ul>
-            {authenticated && currentUser?.role !== "owner" && (
+            {authenticated && currentUser?.role !== "customer" && (
               <Button asChild className="w-full mt-4 bg-green-600">
-                <Link to="/helper/marketplace">Tìm khảo sát</Link>
+                <Link to="/collaborator/marketplace">Tìm khảo sát</Link>
               </Button>
             )}
             {!authenticated && (

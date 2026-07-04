@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -13,7 +14,7 @@ import {
 } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { signup } from "../services/authService";
+import { signup, getGoogleLoginUrl } from "../services/authService";
 import { UserRole } from "../types/auth";
 import { ClipboardList, Users, Search } from "lucide-react";
 
@@ -23,7 +24,7 @@ export function Signup() {
     email: "",
     password: "",
     name: "",
-    role: "helper" as UserRole,
+    role: "collaborator" as UserRole,
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -33,22 +34,16 @@ export function Signup() {
     setError("");
     setIsLoading(true);
 
-    const result = signup(formData);
-
+    const result = await signup(formData);
     setIsLoading(false);
 
-    if (result.success) {
-      // Navigate based on role
-      if (result.user?.role === "owner") {
-        navigate("/owner/dashboard");
-      } else {
-        navigate("/helper/marketplace");
-      }
-      // Force re-render
-      window.dispatchEvent(new Event("storage"));
-    } else {
-      setError(result.error || "Đã xảy ra lỗi");
+    if (!result.success) {
+      setError(result.error ?? "Đã xảy ra lỗi");
+      return;
     }
+
+    toast.success("Đăng ký thành công! Vui lòng đăng nhập để tiếp tục.");
+    navigate("/login");
   };
 
   return (
@@ -80,12 +75,7 @@ export function Signup() {
                 type="text"
                 placeholder="Nguyễn Văn A"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    name: e.target.value,
-                  })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
             </div>
@@ -97,12 +87,7 @@ export function Signup() {
                 type="email"
                 placeholder="email@example.com"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    email: e.target.value,
-                  })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
               />
             </div>
@@ -114,12 +99,7 @@ export function Signup() {
                 type="password"
                 placeholder="••••••••"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    password: e.target.value,
-                  })
-                }
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 minLength={6}
               />
@@ -127,15 +107,17 @@ export function Signup() {
             </div>
 
             <div className="flex flex-col gap-4 mt-5">
-              <Button variant="outline" className="w-full">
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google"
-                  width="18"
-                  height="18"
-                />
-                Đăng ký bằng Google
-              </Button>
+              <a href={getGoogleLoginUrl()} className="w-full">
+                <Button type="button" variant="outline" className="w-full gap-2">
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google"
+                    width="18"
+                    height="18"
+                  />
+                  Đăng ký bằng Google
+                </Button>
+              </a>
             </div>
 
             <div className="space-y-3">
@@ -143,15 +125,12 @@ export function Signup() {
               <RadioGroup
                 value={formData.role}
                 onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    role: value as UserRole,
-                  })
+                  setFormData({ ...formData, role: value as UserRole })
                 }
               >
                 <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="helper" id="helper" />
-                  <Label htmlFor="helper" className="flex-1 cursor-pointer">
+                  <RadioGroupItem value="collaborator" id="collaborator" />
+                  <Label htmlFor="collaborator" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Search className="w-5 h-5 text-blue-600" />
                       <div>
@@ -165,8 +144,8 @@ export function Signup() {
                 </div>
 
                 <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="owner" id="owner" />
-                  <Label htmlFor="owner" className="flex-1 cursor-pointer">
+                  <RadioGroupItem value="customer" id="customer" />
+                  <Label htmlFor="customer" className="flex-1 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Users className="w-5 h-5 text-green-600" />
                       <div>

@@ -24,12 +24,12 @@ import {
 } from "lucide-react";
 import { Notification } from "./Notification";
 import {
-  getHelperFinishedSurveys,
+  getCollaboratorFinishedSurveys,
   getTotalEarned,
 } from "../services/surveyService";
 import {
   createWithdrawRequest,
-  getHelperAvailableBalance,
+  getCollaboratorAvailableBalance,
 } from "../services/withdrawService";
 import { getCurrentUser, isAuthenticated } from "../services/authService";
 import type { FinishedEntry } from "../types/survey";
@@ -42,7 +42,7 @@ const MIN_WITHDRAW = 10000;
 const BAR_EARNED_COLOR = "bg-green-800";
 const BAR_AVAILABLE_COLOR = "bg-green-400";
 
-export function HelperFinishedSurveys() {
+export function CollaboratorFinishedSurveys() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 

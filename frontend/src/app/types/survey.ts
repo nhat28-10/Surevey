@@ -72,12 +72,12 @@ export interface Survey {
   reward: number; // payment amount (based on package)
   deadline: string; // ISO date string
   status: SurveyStatus;
-  ownerId: string;
-  ownerName: string;
+  customerId: string;
+  customerName: string;
   createdAt: string;
   completedCount: number;
   targetCompletions: number;
-  acceptedBy?: string[]; // Helper IDs who accepted
+  acceptedBy?: string[]; // Collaborator IDs who accepted
 }
 
 export interface SurveyFilters {
@@ -95,4 +95,4 @@ export interface FinishedEntry {
   finishedAt: string; // ISO date
 }
 
-export type UserRole = 'owner' | 'helper';
+export type UserRole = 'customer' | 'collaborator';

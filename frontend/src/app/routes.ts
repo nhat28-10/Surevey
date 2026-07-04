@@ -1,18 +1,19 @@
 import { createBrowserRouter } from "react-router";
 import { Layout } from "./components/Layout";
 import { Home } from "./components/Home";
-import { OwnerDashboard } from "./components/OwnerDashboard";
+import { CustomerDashboard } from "./components/CustomerDashboard";
 import { PostSurvey } from "./components/PostSurvey";
 import { SurveyBuilder } from "./components/SurveyBuilder";
-import { HelperMarketplace } from "./components/HelperMarketplace";
+import { CollaboratorMarketplace } from "./components/CollaboratorMarketplace";
 import { FAQ } from "./components/FAQ";
 import { TicketStatus } from "./components/TicketStatus";
 import { Login } from "./components/Login";
 import { Signup } from "./components/Signup";
 import { NotFound } from "./components/NotFound";
 import { SurveyDoing } from "./components/SurveyDoing";
-import { HelperFinishedSurveys } from "./components/HelperFinishedSurveys";
+import { CollaboratorFinishedSurveys } from "./components/CollaboratorFinishedSurveys";
 import { AdminProcessRequests } from "./components/AdminProcessRequests";
+import { UserProfile } from "./components/UserProfile";
 
 export const router = createBrowserRouter([
   {
@@ -32,28 +33,28 @@ export const router = createBrowserRouter([
         Component: Signup,
       },
       {
-        path: "owner/dashboard",
-        Component: OwnerDashboard,
+        path: "customer/dashboard",
+        Component: CustomerDashboard,
       },
       {
-        path: "owner/post",
+        path: "customer/post",
         Component: PostSurvey,
       },
       {
-        path: "owner/survey-builder",
+        path: "customer/survey-builder",
         Component: SurveyBuilder,
       },
       {
-        path: "helper/marketplace",
-        Component: HelperMarketplace,
+        path: "collaborator/marketplace",
+        Component: CollaboratorMarketplace,
       },
       {
-        path: "helper/survey/:surveyId",
+        path: "collaborator/survey/:surveyId",
         Component: SurveyDoing,
       },
       {
-        path: "helper/finished",
-        Component: HelperFinishedSurveys,
+        path: "collaborator/finished",
+        Component: CollaboratorFinishedSurveys,
       },
       {
         path: "admin/requests",
@@ -66,6 +67,10 @@ export const router = createBrowserRouter([
       {
         path: "support/tickets",
         Component: TicketStatus,
+      },
+      {
+        path: "profile",
+        Component: UserProfile,
       },
       {
         path: "*",

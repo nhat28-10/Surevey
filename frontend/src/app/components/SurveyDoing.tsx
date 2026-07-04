@@ -14,7 +14,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Progress } from "../components/ui/progress";
 import {
   getAllSurveys,
-  addHelperFinishedSurvey,
+  addCollaboratorFinishedSurvey,
   completeSurvey,
 } from "../services/surveyService";
 import { getCurrentUser } from "../services/authService";

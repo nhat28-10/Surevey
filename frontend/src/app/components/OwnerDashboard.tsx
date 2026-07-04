@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Survey, SurveyStatus } from "../types/survey";
 import {
-  getSurveysByOwner,
+  getSurveysByCustomer,
   getCurrentUser,
   cancelSurvey,
   deleteSurvey,
@@ -30,7 +30,7 @@ import {
 import { isAuthenticated } from "../services/authService";
 import { toast } from "sonner";
 
-export function OwnerDashboard() {
+export function CustomerDashboard() {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const currentUser = getCurrentUser();
@@ -58,7 +58,7 @@ export function OwnerDashboard() {
 
   const loadSurveys = () => {
     if (currentUser) {
-      const userSurveys = getSurveysByOwner(currentUser.id);
+      const userSurveys = getSurveysByCustomer(currentUser.id);
       setSurveys(userSurveys);
     }
   };
@@ -117,7 +117,7 @@ export function OwnerDashboard() {
           </p>
         </div>
         <Button asChild className="bg-green-600">
-          <Link to="/owner/post">
+          <Link to="/customer/post">
             <PlusCircle className="w-4 h-4 mr-2" />
             Đăng khảo sát mới
           </Link>
@@ -182,7 +182,7 @@ export function OwnerDashboard() {
               và tiếp cận hàng trăm người tham gia tiềm năng.
             </p>
             <Button asChild className="bg-green-600 hover:bg-green-600">
-              <Link to="/owner/post">Đăng khảo sát đầu tiên</Link>
+              <Link to="/customer/post">Đăng khảo sát đầu tiên</Link>
             </Button>
           </div>
         </Card>

@@ -29,12 +29,12 @@ import {
 import { Survey, SurveyFilters } from "../types/survey";
 import {
   getOpenSurveys,
-  addHelperFinishedSurvey,
+  addCollaboratorFinishedSurvey,
   completeSurvey,
 } from "../services/surveyService";
 import { isAuthenticated, getCurrentUser } from "../services/authService";
 
-export function HelperMarketplace() {
+export function CollaboratorMarketplace() {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [filteredSurveys, setFilteredSurveys] = useState<Survey[]>([]);

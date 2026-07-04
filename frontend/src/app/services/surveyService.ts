@@ -49,13 +49,13 @@ export const createSurvey = (surveyData: Omit<Survey, 'id' | 'createdAt' | 'stat
   return newSurvey;
 };
 
-// Get surveys by owner
-export const getSurveysByOwner = (ownerId: string): Survey[] => {
+// Get surveys by customer
+export const getSurveysByCustomer = (customerId: string): Survey[] => {
   const surveys = getAllSurveys();
-  return surveys.filter(survey => survey.ownerId === ownerId);
+  return surveys.filter(survey => survey.customerId === customerId);
 };
 
-// Get open surveys for helpers
+// Get open surveys for collaborators
 export const getOpenSurveys = (filters?: SurveyFilters): Survey[] => {
   let surveys = getAllSurveys().filter(
     survey => survey.status === SurveyStatus.OPEN && survey.completedCount < survey.targetCompletions
@@ -103,14 +103,14 @@ export const updateSurvey = (id: string, updates: Partial<Survey>): Survey | nul
   return surveys[index];
 };
 
-// Accept survey (helper side)
-export const acceptSurvey = (surveyId: string, helperId: string): Survey | null => {
+// Accept survey (collaborator side)
+export const acceptSurvey = (surveyId: string, collaboratorId: string): Survey | null => {
   const survey = getSurveyById(surveyId);
   if (!survey) return null;
 
   const acceptedBy = survey.acceptedBy || [];
-  if (!acceptedBy.includes(helperId)) {
-    acceptedBy.push(helperId);
+  if (!acceptedBy.includes(collaboratorId)) {
+    acceptedBy.push(collaboratorId);
     return updateSurvey(surveyId, {
       acceptedBy,
       status: SurveyStatus.IN_PROGRESS
@@ -135,10 +135,10 @@ export const completeSurvey = (surveyId: string): Survey | null => {
   });
 };
 
-// Cancel survey (owner side)
-export const cancelSurvey = (surveyId: string, ownerId: string): Survey | null => {
+// Cancel survey (customer side)
+export const cancelSurvey = (surveyId: string, customerId: string): Survey | null => {
   const survey = getSurveyById(surveyId);
-  if (!survey || survey.ownerId !== ownerId) return null;
+  if (!survey || survey.customerId !== customerId) return null;
   
   // Can only cancel if not started
   if (survey.status === SurveyStatus.OPEN) {
@@ -148,35 +148,35 @@ export const cancelSurvey = (surveyId: string, ownerId: string): Survey | null =
 };
 
 // Delete survey
-export const deleteSurvey = (surveyId: string, ownerId: string): boolean => {
+export const deleteSurvey = (surveyId: string, customerId: string): boolean => {
   const surveys = getAllSurveys();
   const survey = surveys.find(s => s.id === surveyId);
-  
-  if (!survey || survey.ownerId !== ownerId) return false;
+
+  if (!survey || survey.customerId !== customerId) return false;
   
   const filtered = surveys.filter(s => s.id !== surveyId);
   saveSurveys(filtered);
   return true;
 };
 
-// ── Helper finished-surveys (per-user localStorage) ──
+// ── Collaborator finished-surveys (per-user localStorage) ──
 
-const finishedKey = (helperId: string) => `sureVey_finished_${helperId}`;
+const finishedKey = (collaboratorId: string) => `sureVey_finished_${collaboratorId}`;
 
-export const getHelperFinishedSurveys = (helperId: string): FinishedEntry[] => {
-  const stored = localStorage.getItem(finishedKey(helperId));
+export const getCollaboratorFinishedSurveys = (collaboratorId: string): FinishedEntry[] => {
+  const stored = localStorage.getItem(finishedKey(collaboratorId));
   return stored ? JSON.parse(stored) : [];
 };
 
-export const addHelperFinishedSurvey = (helperId: string, entry: FinishedEntry): void => {
-  const entries = getHelperFinishedSurveys(helperId);
+export const addCollaboratorFinishedSurvey = (collaboratorId: string, entry: FinishedEntry): void => {
+  const entries = getCollaboratorFinishedSurveys(collaboratorId);
   if (entries.some(e => e.surveyId === entry.surveyId)) return; // prevent duplicates
   entries.unshift(entry); // newest first
-  localStorage.setItem(finishedKey(helperId), JSON.stringify(entries));
+  localStorage.setItem(finishedKey(collaboratorId), JSON.stringify(entries));
 };
 
-export const getTotalEarned = (helperId: string): number => {
-  return getHelperFinishedSurveys(helperId).reduce((sum, e) => sum + e.reward, 0);
+export const getTotalEarned = (collaboratorId: string): number => {
+  return getCollaboratorFinishedSurveys(collaboratorId).reduce((sum, e) => sum + e.reward, 0);
 };
 
 // Sample data for initial load
@@ -193,8 +193,8 @@ const getSampleSurveys = (): Survey[] => {
       reward: 1000,
       deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       status: SurveyStatus.OPEN,
-      ownerId: 'owner_1',
-      ownerName: 'TechCorp Inc.',
+      customerId: 'owner_1',
+      customerName: 'TechCorp Inc.',
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 12,
       targetCompletions: 50,
@@ -211,8 +211,8 @@ const getSampleSurveys = (): Survey[] => {
       reward: 1500,
       deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       status: SurveyStatus.OPEN,
-      ownerId: 'owner_2',
-      ownerName: 'Market Insights Ltd.',
+      customerId: 'owner_2',
+      customerName: 'Market Insights Ltd.',
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 5,
       targetCompletions: 100,
@@ -229,8 +229,8 @@ const getSampleSurveys = (): Survey[] => {
       reward: 1000,
       deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       status: SurveyStatus.OPEN,
-      ownerId: 'owner_3',
-      ownerName: 'FoodTech Research',
+      customerId: 'owner_3',
+      customerName: 'FoodTech Research',
       createdAt: new Date().toISOString(),
       completedCount: 28,
       targetCompletions: 30,
@@ -247,8 +247,8 @@ const getSampleSurveys = (): Survey[] => {
       reward: 2000,
       deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       status: SurveyStatus.IN_PROGRESS,
-      ownerId: 'owner_4',
-      ownerName: 'HR Analytics Co.',
+      customerId: 'owner_4',
+      customerName: 'HR Analytics Co.',
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 45,
       targetCompletions: 200,
