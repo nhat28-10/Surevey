@@ -71,7 +71,7 @@ export const SurveyDoing = () => {
   const handleSubmit = () => {
     const user = getCurrentUser();
     if (user && survey) {
-      addHelperFinishedSurvey(user.id, {
+      addCollaboratorFinishedSurvey(user.id, {
         surveyId: survey.id,
         title: survey.title,
         surveyType: survey.surveyType,
@@ -106,7 +106,7 @@ export const SurveyDoing = () => {
           </p>
           <Button
             className="bg-green-600 text-white hover:bg-green-700 rounded-full px-6"
-            onClick={() => navigate("/helper/marketplace")}
+            onClick={() => navigate("/collaborator/marketplace")}
           >
             Quay lại thị trường
           </Button>

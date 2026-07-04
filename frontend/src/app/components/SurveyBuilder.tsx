@@ -30,8 +30,8 @@ interface SurveyDraft {
   package: SurveyPackage;
   deadline: string;
   targetCompletions: string;
-  ownerId: string;
-  ownerName: string;
+  customerId: string;
+  customerName: string;
 }
 
 export function SurveyBuilder() {
@@ -48,7 +48,7 @@ export function SurveyBuilder() {
     const draftData = localStorage.getItem("surveyDraft");
     if (!draftData) {
       toast.error("Không tìm thấy thông tin khảo sát");
-      navigate("/owner/post");
+      navigate("/customer/post");
       return;
     }
 
@@ -57,7 +57,7 @@ export function SurveyBuilder() {
       setDraft(draft);
     } catch (error) {
       toast.error("Lỗi khi tải dữ liệu khảo sát");
-      navigate("/owner/post");
+      navigate("/customer/post");
     }
   }, [navigate]);
 
@@ -199,8 +199,8 @@ export function SurveyBuilder() {
         package: draft.package,
         deadline: draft.deadline,
         targetCompletions: parseInt(draft.targetCompletions),
-        ownerId: draft.ownerId,
-        ownerName: draft.ownerName,
+        customerId: draft.customerId,
+        customerName: draft.customerName,
       });
 
       // Clear draft from localStorage
@@ -208,7 +208,7 @@ export function SurveyBuilder() {
 
       toast.success("Đã tạo khảo sát thành công!");
       window.dispatchEvent(new Event("storage"));
-      navigate("/owner/dashboard");
+      navigate("/customer/dashboard");
     } catch (error) {
       toast.error("Không thể tạo khảo sát");
       console.error(error);
@@ -228,7 +228,7 @@ export function SurveyBuilder() {
       <div>
         <Button
           variant="ghost"
-          onClick={() => navigate("/owner/post")}
+          onClick={() => navigate("/customer/post")}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -379,7 +379,7 @@ export function SurveyBuilder() {
               variant="outline"
               onClick={() => {
                 localStorage.removeItem("surveyDraft");
-                navigate("/owner/post");
+                navigate("/customer/post");
               }}
             >
               Hủy

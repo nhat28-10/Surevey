@@ -189,14 +189,14 @@ export function AdminProcessRequests() {
                   <div className="flex justify-start">
                     <button
                       onClick={() =>
-                        setPreviewImg({ src: req.bankQrImage, name: req.helperName })
+                        setPreviewImg({ src: req.bankQrImage, name: req.collaboratorName })
                       }
                       className="relative group h-40 w-40 rounded-xl border border-gray-200 bg-gray-50 p-2 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       title="Nhấp để phóng to"
                     >
                       <img
                         src={req.bankQrImage}
-                        alt={`QR Code của ${req.helperName}`}
+                        alt={`QR Code của ${req.collaboratorName}`}
                         className="h-full w-full object-contain"
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-xl">

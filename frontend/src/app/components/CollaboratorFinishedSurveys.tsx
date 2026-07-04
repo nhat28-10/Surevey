@@ -85,9 +85,9 @@ export function CollaboratorFinishedSurveys() {
     const user = getCurrentUser();
     if (!user) return;
     const earned = getTotalEarned(user.id);
-    setEntries(getHelperFinishedSurveys(user.id));
+    setEntries(getCollaboratorFinishedSurveys(user.id));
     setTotalEarned(earned);
-    setAvailableBalance(getHelperAvailableBalance(user.id, earned));
+    setAvailableBalance(getCollaboratorAvailableBalance(user.id, earned));
   };
 
   // Bar shows ratio of available balance to total earned.
@@ -140,9 +140,9 @@ export function CollaboratorFinishedSurveys() {
 
     setSubmitting(true);
     createWithdrawRequest({
-      helperId: user.id,
-      helperName: user.name,
-      helperEmail: user.email,
+      collaboratorId: user.id,
+      collaboratorName: user.name,
+      collaboratorEmail: user.email,
       amount: availableBalance,
       bankQrImage: qrBase64,
     });
@@ -399,7 +399,7 @@ export function CollaboratorFinishedSurveys() {
                 nhập ở đây.
               </p>
               <Button
-                onClick={() => navigate("/helper/marketplace")}
+                onClick={() => navigate("/collaborator/marketplace")}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Tìm khảo sát
