@@ -13,6 +13,7 @@ import { NotFound } from "./components/NotFound";
 import { SurveyDoing } from "./components/SurveyDoing";
 import { HelperFinishedSurveys } from "./components/HelperFinishedSurveys";
 import { AdminProcessRequests } from "./components/AdminProcessRequests";
+import { SurveyDetail } from "./components/SurveyDetail";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
       {
         path: "helper/survey/:surveyId",
         Component: SurveyDoing,
+      },
+      {
+        path: "owner/survey/:surveyId",
+        Component: SurveyDetail,
       },
       {
         path: "helper/finished",
