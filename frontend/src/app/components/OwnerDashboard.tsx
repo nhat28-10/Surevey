@@ -10,6 +10,16 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   PlusCircle,
   ExternalLink,
@@ -19,6 +29,7 @@ import {
   Users,
   XCircle,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { Survey, SurveyStatus } from "../types/survey";
 import {
@@ -26,6 +37,7 @@ import {
   getCurrentUser,
   cancelSurvey,
   deleteSurvey,
+  updateSurvey,
 } from "../services/surveyService";
 import { isAuthenticated } from "../services/authService";
 import { toast } from "sonner";
@@ -33,6 +45,11 @@ import { toast } from "sonner";
 export function OwnerDashboard() {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [editingSurvey, setEditingSurvey] = useState<{
+    id: string;
+    title: string;
+    description: string;
+  } | null>(null);
   const currentUser = getCurrentUser();
 
   useEffect(() => {
@@ -84,6 +101,22 @@ export function OwnerDashboard() {
       } else {
         toast.error("Không thể xóa khảo sát");
       }
+    }
+  };
+
+  const handleEditSave = () => {
+    if (!editingSurvey) return;
+    const result = updateSurvey(editingSurvey.id, {
+      title: editingSurvey.title,
+      description: editingSurvey.description,
+    });
+    if (result) {
+      toast.success("Đã cập nhật khảo sát thành công");
+      setEditingSurvey(null);
+      loadSurveys();
+      window.dispatchEvent(new Event("storage"));
+    } else {
+      toast.error("Không thể cập nhật khảo sát");
     }
   };
 
@@ -203,6 +236,20 @@ export function OwnerDashboard() {
                   </div>
 
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        setEditingSurvey({
+                          id: survey.id,
+                          title: survey.title,
+                          description: survey.description,
+                        })
+                      }
+                    >
+                      <Pencil className="w-4 h-4 mr-1" />
+                      Sửa
+                    </Button>
                     {survey.status === SurveyStatus.OPEN && (
                       <Button
                         size="sm"
@@ -290,21 +337,75 @@ export function OwnerDashboard() {
 
                 {/* Survey Link */}
                 <div className="pt-4 border-t">
-                  <a
-                    href={survey.surveyLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Xem liên kết khảo sát
-                  </a>
+                  {survey.surveyType === "internal" ? (
+                    <Link
+                      to={`/owner/survey/${survey.id}`}
+                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Xem chi tiết khảo sát
+                    </Link>
+                  ) : (
+                    <a
+                      href={survey.surveyLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Xem liên kết khảo sát
+                    </a>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog
+        open={editingSurvey !== null}
+        onOpenChange={(open) => { if (!open) setEditingSurvey(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa khảo sát</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="edit-title">Tên khảo sát</Label>
+              <Input
+                id="edit-title"
+                value={editingSurvey?.title ?? ""}
+                onChange={(e) =>
+                  setEditingSurvey((prev) =>
+                    prev ? { ...prev, title: e.target.value } : prev
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-description">Mô tả</Label>
+              <Textarea
+                id="edit-description"
+                rows={4}
+                value={editingSurvey?.description ?? ""}
+                onChange={(e) =>
+                  setEditingSurvey((prev) =>
+                    prev ? { ...prev, description: e.target.value } : prev
+                  )
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSurvey(null)}>
+              Hủy
+            </Button>
+            <Button onClick={handleEditSave}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

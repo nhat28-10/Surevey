@@ -78,6 +78,7 @@ export interface Survey {
   completedCount: number;
   targetCompletions: number;
   acceptedBy?: string[]; // Helper IDs who accepted
+  completedByHelperIds?: string[]; // Helper IDs who have individually completed this survey
 }
 
 export interface SurveyFilters {

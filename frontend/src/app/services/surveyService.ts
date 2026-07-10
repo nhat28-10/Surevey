@@ -25,15 +25,15 @@ const saveSurveys = (surveys: Survey[]): void => {
 };
 
 // Create a new survey
-export const createSurvey = (surveyData: Omit<Survey, 'id' | 'createdAt' | 'status' | 'completedCount' | 'acceptedBy' | 'estimatedTime' | 'reward'>): Survey => {
+export const createSurvey = (surveyData: Omit<Survey, 'id' | 'createdAt' | 'status' | 'completedCount' | 'acceptedBy' | 'completedByHelperIds' | 'estimatedTime' | 'reward'>): Survey => {
   const surveys = getAllSurveys();
-  
+
   // Get package info to set estimatedTime and reward
   const packageInfo = SURVEY_PACKAGES.find(p => p.id === surveyData.package);
   if (!packageInfo) {
     throw new Error('Invalid package selected');
   }
-  
+
   const newSurvey: Survey = {
     ...surveyData,
     id: `survey_${Date.now()}`,
@@ -41,6 +41,7 @@ export const createSurvey = (surveyData: Omit<Survey, 'id' | 'createdAt' | 'stat
     status: SurveyStatus.OPEN,
     completedCount: 0,
     acceptedBy: [],
+    completedByHelperIds: [],
     estimatedTime: packageInfo.timeLimit,
     reward: packageInfo.pricePerResponse
   };
@@ -56,10 +57,19 @@ export const getSurveysByOwner = (ownerId: string): Survey[] => {
 };
 
 // Get open surveys for helpers
-export const getOpenSurveys = (filters?: SurveyFilters): Survey[] => {
-  let surveys = getAllSurveys().filter(
-    survey => survey.status === SurveyStatus.OPEN && survey.completedCount < survey.targetCompletions
-  );
+// helperId: if provided, surveys this helper has already completed are excluded
+export const getOpenSurveys = (filters?: SurveyFilters, helperId?: string): Survey[] => {
+  let surveys = getAllSurveys().filter(survey => {
+    const isAcceptingResponses =
+      (survey.status === SurveyStatus.OPEN || survey.status === SurveyStatus.IN_PROGRESS) &&
+      survey.completedCount < survey.targetCompletions;
+
+    if (!isAcceptingResponses) return false;
+
+    if (helperId && (survey.completedByHelperIds ?? []).includes(helperId)) return false;
+
+    return true;
+  });
 
   // Apply filters
   if (filters) {
@@ -119,19 +129,27 @@ export const acceptSurvey = (surveyId: string, helperId: string): Survey | null 
   return survey;
 };
 
-// Mark survey as completed (helper side)
-export const completeSurvey = (surveyId: string): Survey | null => {
+// Mark survey as completed by a specific helper
+// The survey only becomes globally COMPLETED when completedCount reaches targetCompletions.
+// Until then it stays OPEN or IN_PROGRESS so other helpers can still see and complete it.
+export const completeSurvey = (surveyId: string, helperId?: string): Survey | null => {
   const survey = getSurveyById(surveyId);
   if (!survey) return null;
 
   const newCompletedCount = survey.completedCount + 1;
-  const newStatus = newCompletedCount >= survey.targetCompletions 
-    ? SurveyStatus.COMPLETED 
+  const newStatus = newCompletedCount >= survey.targetCompletions
+    ? SurveyStatus.COMPLETED
     : SurveyStatus.IN_PROGRESS;
+
+  const completedByHelperIds = [...(survey.completedByHelperIds ?? [])];
+  if (helperId && !completedByHelperIds.includes(helperId)) {
+    completedByHelperIds.push(helperId);
+  }
 
   return updateSurvey(surveyId, {
     completedCount: newCompletedCount,
-    status: newStatus
+    status: newStatus,
+    completedByHelperIds,
   });
 };
 
@@ -198,7 +216,8 @@ const getSampleSurveys = (): Survey[] => {
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 12,
       targetCompletions: 50,
-      acceptedBy: []
+      acceptedBy: [],
+      completedByHelperIds: []
     },
     {
       id: 'survey_2',
@@ -216,7 +235,8 @@ const getSampleSurveys = (): Survey[] => {
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 5,
       targetCompletions: 100,
-      acceptedBy: []
+      acceptedBy: [],
+      completedByHelperIds: []
     },
     {
       id: 'survey_3',
@@ -234,7 +254,8 @@ const getSampleSurveys = (): Survey[] => {
       createdAt: new Date().toISOString(),
       completedCount: 28,
       targetCompletions: 30,
-      acceptedBy: []
+      acceptedBy: [],
+      completedByHelperIds: []
     },
     {
       id: 'survey_4',
@@ -252,7 +273,8 @@ const getSampleSurveys = (): Survey[] => {
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
       completedCount: 45,
       targetCompletions: 200,
-      acceptedBy: ['helper_1', 'helper_2']
+      acceptedBy: ['helper_1', 'helper_2'],
+      completedByHelperIds: []
     }
   ];
 

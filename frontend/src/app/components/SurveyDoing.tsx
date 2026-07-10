@@ -78,7 +78,7 @@ export const SurveyDoing = () => {
         reward: survey.reward,
         finishedAt: new Date().toISOString(),
       });
-      completeSurvey(survey.id);
+      completeSurvey(survey.id, user.id);
       window.dispatchEvent(new Event("storage"));
     }
     setSubmitted(true);
