@@ -54,14 +54,6 @@ export const router = createBrowserRouter([
         Component: SurveyDoing,
       },
       {
-        path: "owner/survey/:surveyId",
-        Component: SurveyDetail,
-      },
-      {
-        path: "owner/survey/:surveyId",
-        Component: SurveyDetail,
-      },
-      {
         path: "collaborator/finished",
         Component: CollaboratorFinishedSurveys,
       },
