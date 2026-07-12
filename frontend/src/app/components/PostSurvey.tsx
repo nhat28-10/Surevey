@@ -121,6 +121,11 @@ export function PostSurvey() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!currentUser) {
+      navigate("/login");
+      return;
+    }
+
     if (!validate()) {
       toast.error("Vui lòng sửa các lỗi trong biểu mẫu");
       return;
@@ -137,11 +142,11 @@ export function PostSurvey() {
           package: formData.selectedPackage,
           deadline: formData.deadline,
           targetCompletions: formData.targetCompletions,
-          ownerId: currentUser.id,
-          ownerName: currentUser.name,
+          customerId: currentUser.id,
+          customerName: currentUser.name,
         }),
       );
-      navigate("/owner/survey-builder");
+      navigate("/customer/survey-builder");
       return;
     }
 
@@ -155,13 +160,13 @@ export function PostSurvey() {
         package: formData.selectedPackage as SurveyPackage,
         deadline: new Date(formData.deadline).toISOString(),
         targetCompletions: parseInt(formData.targetCompletions),
-        ownerId: currentUser.id,
-        ownerName: currentUser.name,
+        customerId: currentUser.id,
+        customerName: currentUser.name,
       });
 
       toast.success("Đã đăng khảo sát thành công!");
       window.dispatchEvent(new Event("storage"));
-      navigate("/owner/dashboard");
+      navigate("/customer/dashboard");
     } catch (error) {
       toast.error("Không thể đăng khảo sát");
       console.error(error);
@@ -454,7 +459,7 @@ export function PostSurvey() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/owner/dashboard")}
+                onClick={() => navigate("/customer/dashboard")}
               >
                 Hủy
               </Button>

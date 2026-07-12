@@ -67,8 +67,8 @@ interface SurveyDraft {
   package: SurveyPackage;
   deadline: string;
   targetCompletions: string;
-  ownerId: string;
-  ownerName: string;
+  customerId: string;
+  customerName: string;
 }
 
 // ─── Auto-scroll during drag ───────────────────────────────────────────────
@@ -464,14 +464,14 @@ function SurveyBuilderInner() {
     const raw = localStorage.getItem("surveyDraft");
     if (!raw) {
       toast.error("Không tìm thấy thông tin khảo sát");
-      navigate("/owner/post");
+      navigate("/customer/post");
       return;
     }
     try {
       setDraft(JSON.parse(raw));
     } catch {
       toast.error("Lỗi khi tải dữ liệu khảo sát");
-      navigate("/owner/post");
+      navigate("/customer/post");
     }
   }, [navigate]);
 
@@ -624,14 +624,14 @@ function SurveyBuilderInner() {
         package: draft.package,
         deadline: draft.deadline,
         targetCompletions: parseInt(draft.targetCompletions),
-        ownerId: draft.ownerId,
-        ownerName: draft.ownerName,
+        customerId: draft.customerId,
+        customerName: draft.customerName,
       });
       localStorage.removeItem("surveyDraft");
       toast.success("Đã tạo khảo sát thành công!");
       window.dispatchEvent(new Event("storage"));
-      navigate("/owner/dashboard");
-    } catch (err) {
+      navigate("/customer/dashboard");
+    } catch (error) {
       toast.error("Không thể tạo khảo sát");
       console.error(err);
     }
@@ -651,7 +651,7 @@ function SurveyBuilderInner() {
       <div>
         <Button
           variant="ghost"
-          onClick={() => navigate("/owner/post")}
+          onClick={() => navigate("/customer/post")}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -741,7 +741,7 @@ function SurveyBuilderInner() {
               variant="outline"
               onClick={() => {
                 localStorage.removeItem("surveyDraft");
-                navigate("/owner/post");
+                navigate("/customer/post");
               }}
             >
               Hủy

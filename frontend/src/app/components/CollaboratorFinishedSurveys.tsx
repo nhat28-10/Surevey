@@ -24,12 +24,12 @@ import {
 } from "lucide-react";
 import { Notification } from "./Notification";
 import {
-  getHelperFinishedSurveys,
+  getCollaboratorFinishedSurveys,
   getTotalEarned,
 } from "../services/surveyService";
 import {
   createWithdrawRequest,
-  getHelperAvailableBalance,
+  getCollaboratorAvailableBalance,
 } from "../services/withdrawService";
 import { getCurrentUser, isAuthenticated } from "../services/authService";
 import type { FinishedEntry } from "../types/survey";
@@ -42,7 +42,7 @@ const MIN_WITHDRAW = 10000;
 const BAR_EARNED_COLOR = "bg-green-800";
 const BAR_AVAILABLE_COLOR = "bg-green-400";
 
-export function HelperFinishedSurveys() {
+export function CollaboratorFinishedSurveys() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,9 +85,9 @@ export function HelperFinishedSurveys() {
     const user = getCurrentUser();
     if (!user) return;
     const earned = getTotalEarned(user.id);
-    setEntries(getHelperFinishedSurveys(user.id));
+    setEntries(getCollaboratorFinishedSurveys(user.id));
     setTotalEarned(earned);
-    setAvailableBalance(getHelperAvailableBalance(user.id, earned));
+    setAvailableBalance(getCollaboratorAvailableBalance(user.id, earned));
   };
 
   // Bar shows ratio of available balance to total earned.
@@ -140,9 +140,9 @@ export function HelperFinishedSurveys() {
 
     setSubmitting(true);
     createWithdrawRequest({
-      helperId: user.id,
-      helperName: user.name,
-      helperEmail: user.email,
+      collaboratorId: user.id,
+      collaboratorName: user.name,
+      collaboratorEmail: user.email,
       amount: availableBalance,
       bankQrImage: qrBase64,
     });
@@ -399,7 +399,7 @@ export function HelperFinishedSurveys() {
                 nhập ở đây.
               </p>
               <Button
-                onClick={() => navigate("/helper/marketplace")}
+                onClick={() => navigate("/collaborator/marketplace")}
                 className="bg-green-600 hover:bg-green-700"
               >
                 Tìm khảo sát

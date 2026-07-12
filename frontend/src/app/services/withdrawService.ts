@@ -4,9 +4,9 @@ export type WithdrawStatus = 'pending' | 'completed';
 
 export interface WithdrawRequest {
   id: string;
-  helperId: string;
-  helperName: string;
-  helperEmail: string;
+  collaboratorId: string;
+  collaboratorName: string;
+  collaboratorEmail: string;
   amount: number;
   bankQrImage: string; // base64 data URL
   requestedAt: string;
@@ -52,13 +52,13 @@ export const completeWithdrawRequest = (id: string): WithdrawRequest | null => {
   return requests[index];
 };
 
-// Sum of amounts from completed withdrawal requests for a helper
-export const getHelperWithdrawnTotal = (helperId: string): number =>
+// Sum of amounts from completed withdrawal requests for a collaborator
+export const getCollaboratorWithdrawnTotal = (collaboratorId: string): number =>
   getAllWithdrawRequests()
-    .filter(r => r.helperId === helperId && r.status === 'completed')
+    .filter(r => r.collaboratorId === collaboratorId && r.status === 'completed')
     .reduce((sum, r) => sum + r.amount, 0);
 
-export const getHelperAvailableBalance = (
-  helperId: string,
+export const getCollaboratorAvailableBalance = (
+  collaboratorId: string,
   totalEarned: number
-): number => Math.max(0, totalEarned - getHelperWithdrawnTotal(helperId));
+): number => Math.max(0, totalEarned - getCollaboratorWithdrawnTotal(collaboratorId));

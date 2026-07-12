@@ -29,12 +29,12 @@ import {
 import { Survey, SurveyFilters } from "../types/survey";
 import {
   getOpenSurveys,
-  addHelperFinishedSurvey,
+  addCollaboratorFinishedSurvey,
   completeSurvey,
 } from "../services/surveyService";
 import { isAuthenticated, getCurrentUser } from "../services/authService";
 
-export function HelperMarketplace() {
+export function CollaboratorMarketplace() {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [filteredSurveys, setFilteredSurveys] = useState<Survey[]>([]);
@@ -274,7 +274,7 @@ export function HelperMarketplace() {
                       </div>
                       <CardDescription>{survey.description}</CardDescription>
                       <p className="text-sm text-gray-500 mt-2">
-                        Đăng bởi: {survey.ownerName}
+                        Đăng bởi: {survey.customerName}
                       </p>
                     </div>
 
@@ -338,11 +338,11 @@ export function HelperMarketplace() {
                       className="flex-1 bg-green-600 hover:bg-green-700"
                       onClick={() => {
                         if (survey.surveyType === "internal") {
-                          navigate(`/helper/survey/${survey.id}`);
+                          navigate(`/collaborator/survey/${survey.id}`);
                         } else {
                           const user = getCurrentUser();
                           if (user) {
-                            addHelperFinishedSurvey(user.id, {
+                            addCollaboratorFinishedSurvey(user.id, {
                               surveyId: survey.id,
                               title: survey.title,
                               surveyType: survey.surveyType,

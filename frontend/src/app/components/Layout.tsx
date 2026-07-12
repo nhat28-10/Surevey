@@ -34,6 +34,15 @@ export function Layout() {
     window.dispatchEvent(new Event("storage"));
   };
 
+  const handleRoleSwitch = (role: "customer" | "collaborator") => {
+    const updatedUser = switchUserRole(role);
+    if (updatedUser) {
+      setCurrentUser(updatedUser);
+      window.dispatchEvent(new Event("storage"));
+      navigate(role === "customer" ? "/customer/dashboard" : "/collaborator/marketplace");
+    }
+  };
+
   useEffect(() => {
     const handleStorageChange = () => {
       setCurrentUser(getCurrentUser());
@@ -70,12 +79,12 @@ export function Layout() {
                 Trang chủ
               </Link>
 
-              {authenticated && currentUser?.role === "owner" ? (
+              {authenticated && currentUser?.role === "customer" ? (
                 <>
                   <Link
-                    to="/owner/dashboard"
+                    to="/customer/dashboard"
                     className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
-                      isActive("/owner/dashboard")
+                      isActive("/customer/dashboard")
                         ? "bg-green-600 text-white"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
@@ -84,9 +93,9 @@ export function Layout() {
                     Khảo sát của tôi
                   </Link>
                   <Link
-                    to="/owner/post"
+                    to="/customer/post"
                     className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
-                      isActive("/owner/post")
+                      isActive("/customer/post")
                         ? "bg-green-600 text-white"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
@@ -95,12 +104,12 @@ export function Layout() {
                     Đăng khảo sát
                   </Link>
                 </>
-              ) : authenticated && currentUser?.role === "helper" ? (
+              ) : authenticated && currentUser?.role === "collaborator" ? (
                 <>
                   <Link
-                    to="/helper/marketplace"
+                    to="/collaborator/marketplace"
                     className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
-                      isActive("/helper/marketplace")
+                      isActive("/collaborator/marketplace")
                         ? "bg-green-600 text-white"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
@@ -109,9 +118,9 @@ export function Layout() {
                     Tìm khảo sát
                   </Link>
                   <Link
-                    to="/helper/finished"
+                    to="/collaborator/finished"
                     className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
-                      isActive("/helper/finished")
+                      isActive("/collaborator/finished")
                         ? "bg-green-600 text-white"
                         : "text-gray-600 hover:text-gray-900"
                     }`}
@@ -153,20 +162,22 @@ export function Layout() {
               {authenticated && currentUser ? (
                 <>
                   <div className="hidden lg:flex items-center gap-3 text-lg text-gray-600">
-                    <UserCircle className="w-7 h-7" />
-                    <span>{currentUser.name}</span>
+                    <Link to="/profile" className="flex items-center gap-2 hover:text-gray-900 transition-colors">
+                      <UserCircle className="w-7 h-7" />
+                      <span>{currentUser.name}</span>
+                    </Link>
                     <Badge
                       className={`text-sm font-medium ${
                         currentUser.role === "admin"
                           ? "bg-blue-100 text-blue-800"
-                          : currentUser.role === "owner"
+                          : currentUser.role === "customer"
                             ? "bg-purple-100 text-purple-800"
                             : "bg-green-100 text-green-800"
                       }`}
                     >
                       {currentUser.role === "admin"
                         ? "Quản trị viên"
-                        : currentUser.role === "owner"
+                        : currentUser.role === "customer"
                           ? "Chủ khảo sát"
                           : "Người làm khảo sát"}
                     </Badge>
@@ -215,12 +226,12 @@ export function Layout() {
               Trang chủ
             </Link>
 
-            {authenticated && currentUser?.role === "owner" ? (
+            {authenticated && currentUser?.role === "customer" ? (
               <>
                 <Link
-                  to="/owner/dashboard"
+                  to="/customer/dashboard"
                   className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                    isActive("/owner/dashboard")
+                    isActive("/customer/dashboard")
                       ? "bg-green-600 text-white"
                       : "text-gray-600"
                   }`}
@@ -229,9 +240,9 @@ export function Layout() {
                   Khảo sát
                 </Link>
                 <Link
-                  to="/owner/post"
+                  to="/customer/post"
                   className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                    isActive("/owner/post")
+                    isActive("/customer/post")
                       ? "bg-green-600 text-white"
                       : "text-gray-600"
                   }`}
@@ -240,12 +251,12 @@ export function Layout() {
                   Đăng
                 </Link>
               </>
-            ) : authenticated && currentUser?.role === "helper" ? (
+            ) : authenticated && currentUser?.role === "collaborator" ? (
               <>
                 <Link
-                  to="/helper/marketplace"
+                  to="/collaborator/marketplace"
                   className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                    isActive("/helper/marketplace")
+                    isActive("/collaborator/marketplace")
                       ? "bg-green-600 text-white"
                       : "text-gray-600"
                   }`}
@@ -254,9 +265,9 @@ export function Layout() {
                   Tìm kiếm
                 </Link>
                 <Link
-                  to="/helper/finished"
+                  to="/collaborator/finished"
                   className={`flex items-center gap-1 text-sm whitespace-nowrap px-3 py-1.5 rounded-full transition-colors ${
-                    isActive("/helper/finished")
+                    isActive("/collaborator/finished")
                       ? "bg-green-600 text-white"
                       : "text-gray-600"
                   }`}
@@ -321,8 +332,8 @@ export function Layout() {
                 <Button
                   size="sm"
                   className="flex-1"
-                  variant={currentUser.role === "owner" ? "default" : "outline"}
-                  onClick={() => handleRoleSwitch("owner")}
+                  variant={currentUser.role === "customer" ? "default" : "outline"}
+                  onClick={() => handleRoleSwitch("customer")}
                 >
                   Chủ khảo sát
                 </Button>
@@ -330,9 +341,9 @@ export function Layout() {
                   size="sm"
                   className="flex-1"
                   variant={
-                    currentUser.role === "helper" ? "default" : "outline"
+                    currentUser.role === "collaborator" ? "default" : "outline"
                   }
-                  onClick={() => handleRoleSwitch("helper")}
+                  onClick={() => handleRoleSwitch("collaborator")}
                 >
                   Người làm
                 </Button>

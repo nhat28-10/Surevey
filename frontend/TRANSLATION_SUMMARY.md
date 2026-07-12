@@ -13,11 +13,11 @@ All user-facing content in the SureVey application has been translated to Vietna
 
 2. **Home.tsx**
    - Hero section
-   - Feature descriptions for both Owner and Helper
+   - Feature descriptions for both Customer and Helper
    - Statistics section
    - "How It Works" section
 
-3. **OwnerDashboard.tsx**
+3. **CustomerDashboard.tsx**
    - Dashboard header and stats
    - Survey cards with all labels
    - Toast notifications
@@ -53,7 +53,7 @@ All user-facing content in the SureVey application has been translated to Vietna
 
 - Date formatting uses Vietnamese locale: `toLocaleDateString('vi-VN')`
 - All user-facing strings are in Vietnamese
-- Technical terms like "Survey", "Owner", "Helper" are translated contextually
+- Technical terms like "Survey", "Customer", "Helper" are translated contextually
 
 ### Testing Checklist:
 
