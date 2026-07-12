@@ -72,13 +72,15 @@ export function CollaboratorMarketplace() {
     applyFilters();
   }, [surveys, filters]);
 
+  const currentUser = getCurrentUser();
+
   const loadSurveys = () => {
-    const openSurveys = getOpenSurveys();
+    const openSurveys = getOpenSurveys(undefined, currentUser?.id);
     setSurveys(openSurveys);
   };
 
   const applyFilters = () => {
-    const filtered = getOpenSurveys(filters);
+    const filtered = getOpenSurveys(filters, currentUser?.id);
     setFilteredSurveys(filtered);
   };
 
@@ -347,7 +349,7 @@ export function CollaboratorMarketplace() {
                               reward: survey.reward,
                               finishedAt: new Date().toISOString(),
                             });
-                            completeSurvey(survey.id);
+                            completeSurvey(survey.id, user.id);
                             window.dispatchEvent(new Event("storage"));
                           }
                           window.open(survey.surveyLink, "_blank");

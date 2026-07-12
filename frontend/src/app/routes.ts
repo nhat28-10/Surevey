@@ -14,6 +14,7 @@ import { SurveyDoing } from "./components/SurveyDoing";
 import { CollaboratorFinishedSurveys } from "./components/CollaboratorFinishedSurveys";
 import { AdminProcessRequests } from "./components/AdminProcessRequests";
 import { UserProfile } from "./components/UserProfile";
+import { SurveyDetail } from "./components/SurveyDetail";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +52,14 @@ export const router = createBrowserRouter([
       {
         path: "collaborator/survey/:surveyId",
         Component: SurveyDoing,
+      },
+      {
+        path: "owner/survey/:surveyId",
+        Component: SurveyDetail,
+      },
+      {
+        path: "owner/survey/:surveyId",
+        Component: SurveyDetail,
       },
       {
         path: "collaborator/finished",
