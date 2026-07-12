@@ -23,6 +23,7 @@ export function Signup() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    confirmPassword: "",
     name: "",
     role: "collaborator" as UserRole,
   });
@@ -32,13 +33,31 @@ export function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Email không hợp lệ");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      toast.error("Mật khẩu phải có ít nhất 8 ký tự");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Mật khẩu nhập lại không khớp");
+      return;
+    }
+
+    setIsLoading(true);
     const result = await signup(formData);
     setIsLoading(false);
 
     if (!result.success) {
-      setError(result.error ?? "Đã xảy ra lỗi");
+      const msg = result.error ?? "Đã xảy ra lỗi";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -101,9 +120,24 @@ export function Signup() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                minLength={6}
+                minLength={8}
               />
-              <p className="text-xs text-gray-500">Tối thiểu 6 ký tự</p>
+              <p className="text-xs text-gray-500">Tối thiểu 8 ký tự</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Nhập lại mật khẩu</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                required
+              />
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="text-xs text-red-500">Mật khẩu không khớp</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-4 mt-5">

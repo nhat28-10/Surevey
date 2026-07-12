@@ -111,11 +111,11 @@ export const signup = async (
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     await userApi.register({
-      userId: 0,
       userName: data.name,
+      fullName: data.name,
       email: data.email,
       password: data.password,
-      confirmPassword: data.password,
+      confirmPassword: data.confirmPassword,
       roleId: ROLE_ID_MAP[data.role],
     });
     return { success: true };

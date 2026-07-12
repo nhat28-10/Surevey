@@ -25,13 +25,14 @@ export interface LoginCredentials {
 export interface SignupData {
   email: string;
   password: string;
+  confirmPassword: string;
   name: string;
   role: UserRole;
 }
 
 // API schema types — match the UserService OpenAPI spec exactly
 export interface ApiUser {
-  userId: number;
+  userId?: number;
   userName: string;
   email: string;
   password?: string;
@@ -80,15 +81,15 @@ export interface PaginationParams {
   PageSize: number;
 }
 
-// roleId mapping — 1=customer, 2=collaborator, 3=admin (matches backend seed data)
+// roleId mapping — 1=collaborator, 2=customer, 3=admin (matches backend seed data)
 export const ROLE_ID_MAP: Record<UserRole, number> = {
-  customer: 1,
-  collaborator: 2,
+  collaborator: 1,
+  customer: 2,
   admin: 3,
 };
 
 export const ROLE_FROM_ID: Record<number, UserRole> = {
-  1: 'customer',
-  2: 'collaborator',
+  1: 'collaborator',
+  2: 'customer',
   3: 'admin',
 };
