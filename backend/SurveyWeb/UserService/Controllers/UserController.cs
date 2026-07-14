@@ -18,20 +18,17 @@ public class UserController : ControllerBase
     private readonly MyDbContext _dbContext;
     private readonly JwtService _jwtService;
     private readonly OtpService _otpService;
-    private readonly EmailService _emailService;
 
     public UserController(
         IUserService userService,
         MyDbContext dbContext,
         JwtService jwtService,
-        OtpService otpService,
-        EmailService emailService)
+        OtpService otpService)
     {
         _userService = userService;
         _dbContext = dbContext;
         _jwtService = jwtService;
         _otpService = otpService;
-        _emailService = emailService;
     }
 
     // ─────────────────────────────────────────────
@@ -56,26 +53,30 @@ public class UserController : ControllerBase
     // POST /api/user/login
     // ─────────────────────────────────────────────
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest login)
+    public IActionResult Login([FromBody] LoginRequest login)
     {
         try
         {
             // Validate email + password (ném exception nếu sai)
             var user = _userService.ValidateUser(login.Email, login.Password);
 
-            // Sinh OTP và gửi về email
-            var otp = await _otpService.GenerateAndStoreAsync(login.Email);
-            await _emailService.SendOtpAsync(login.Email, otp).WaitAsync(TimeSpan.FromSeconds(10));
+            // Demo mode: skip OTP and return JWT immediately.
+            var token = _jwtService.GenerateToken(user);
 
-            return Ok(new { message = "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và xác nhận." });
-        }
-        catch (TimeoutException ex)
-        {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+            return Ok(new
+            {
+                message = "Dang nhap thanh cong",
+                token,
+                user = new
+                {
+                    user.UserId,
+                    user.UserName,
+                    user.Email,
+                    user.FullName,
+                    user.AvatarUrl,
+                    Role = user.Role!.RoleName
+                }
+            });
         }
         catch (Exception ex)
         {

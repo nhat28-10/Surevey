@@ -109,7 +109,6 @@ builder.Services.AddScoped<IUserService, UserService.Services.UserService>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<OtpService>();
-builder.Services.AddScoped<EmailService>();
 
 var app = builder.Build();
 
