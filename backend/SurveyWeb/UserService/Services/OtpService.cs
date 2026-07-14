@@ -1,34 +1,33 @@
-using StackExchange.Redis;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace UserService.Services;
 
 public class OtpService
 {
-    private readonly IDatabase _redis;
-    private const int OtpTtlSeconds = 120; // 2 phút
+    private readonly IMemoryCache _cache;
+    private static readonly TimeSpan OtpTtl = TimeSpan.FromSeconds(120); // 2 phút
     private const string Prefix = "otp:";
 
-    public OtpService(IConnectionMultiplexer redis)
+    public OtpService(IMemoryCache cache)
     {
-        _redis = redis.GetDatabase();
+        _cache = cache;
     }
 
-    /// <summary>Sinh OTP 6 số và lưu vào Redis với TTL 2 phút.</summary>
-    public async Task<string> GenerateAndStoreAsync(string email)
+    /// <summary>Sinh OTP 6 số và lưu tạm trong memory cache với TTL 2 phút.</summary>
+    public Task<string> GenerateAndStoreAsync(string email)
     {
         var otp = Random.Shared.Next(100_000, 999_999).ToString();
-        await _redis.StringSetAsync(Prefix + email, otp, TimeSpan.FromSeconds(OtpTtlSeconds));
-        return otp;
+        _cache.Set(Prefix + email, otp, OtpTtl);
+        return Task.FromResult(otp);
     }
 
-    /// <summary>Xác minh OTP. Đúng → xóa key khỏi Redis. Sai hoặc hết hạn → false.</summary>
-    public async Task<bool> VerifyAsync(string email, string otp)
+    /// <summary>Xác minh OTP. Đúng → xóa key khỏi cache. Sai hoặc hết hạn → false.</summary>
+    public Task<bool> VerifyAsync(string email, string otp)
     {
         var key = Prefix + email;
-        var stored = await _redis.StringGetAsync(key);
-        if (stored.IsNullOrEmpty || stored != otp) return false;
+        if (!_cache.TryGetValue(key, out string? stored) || stored != otp) return Task.FromResult(false);
 
-        await _redis.KeyDeleteAsync(key); // dùng 1 lần
-        return true;
+        _cache.Remove(key); // dùng 1 lần
+        return Task.FromResult(true);
     }
 }
