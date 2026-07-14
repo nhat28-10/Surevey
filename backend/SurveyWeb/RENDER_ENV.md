@@ -55,6 +55,12 @@ Jwt__Audience=SureSurvey
 InternalService__ApiKey=<CHANGE_ME_INTERNAL_API_KEY>
 Authentication__Google__ClientId=<GOOGLE_CLIENT_ID_OR_DUMMY>
 Authentication__Google__ClientSecret=<GOOGLE_CLIENT_SECRET_OR_DUMMY>
+Smtp__Host=<SMTP_HOST>
+Smtp__Port=587
+Smtp__Username=<SMTP_USERNAME>
+Smtp__Password=<SMTP_PASSWORD_OR_APP_PASSWORD>
+Smtp__DisplayName=SureSurvey
+Smtp__TimeoutSeconds=10
 ```
 
 Optional environment variables:
