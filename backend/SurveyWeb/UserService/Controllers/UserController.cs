@@ -65,9 +65,17 @@ public class UserController : ControllerBase
 
             // Sinh OTP và gửi về email
             var otp = await _otpService.GenerateAndStoreAsync(login.Email);
-            await _emailService.SendOtpAsync(login.Email, otp);
+            await _emailService.SendOtpAsync(login.Email, otp).WaitAsync(TimeSpan.FromSeconds(10));
 
             return Ok(new { message = "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra và xác nhận." });
+        }
+        catch (TimeoutException ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
         }
         catch (Exception ex)
         {

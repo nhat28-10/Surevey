@@ -15,16 +15,34 @@ public class EmailService
     public async Task SendOtpAsync(string toEmail, string otp)
     {
         var smtp = _config.GetSection("Smtp");
+        var host = smtp["Host"];
+        var username = smtp["Username"];
+        var password = smtp["Password"];
+        var timeoutSeconds = _config.GetValue("Smtp:TimeoutSeconds", 10);
 
-        var client = new SmtpClient(smtp["Host"], int.Parse(smtp["Port"]!))
+        if (string.IsNullOrWhiteSpace(host) ||
+            string.IsNullOrWhiteSpace(smtp["Port"]) ||
+            string.IsNullOrWhiteSpace(username) ||
+            string.IsNullOrWhiteSpace(password))
         {
-            Credentials = new NetworkCredential(smtp["Username"], smtp["Password"]),
-            EnableSsl = true
+            throw new InvalidOperationException("Thiếu cấu hình SMTP để gửi OTP.");
+        }
+
+        if (!int.TryParse(smtp["Port"], out var port))
+        {
+            throw new InvalidOperationException("Cổng SMTP không hợp lệ.");
+        }
+
+        using var client = new SmtpClient(host, port)
+        {
+            Credentials = new NetworkCredential(username, password),
+            EnableSsl = true,
+            Timeout = timeoutSeconds * 1000
         };
 
-        var mail = new MailMessage
+        using var mail = new MailMessage
         {
-            From = new MailAddress(smtp["Username"]!, smtp["DisplayName"] ?? "UserService"),
+            From = new MailAddress(username, smtp["DisplayName"] ?? "UserService"),
             Subject = "Mã OTP đăng nhập của bạn",
             Body = $@"
                 <div style='font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #e0e0e0;border-radius:8px'>
@@ -37,6 +55,14 @@ public class EmailService
         };
         mail.To.Add(toEmail);
 
-        await client.SendMailAsync(mail);
+        try
+        {
+            await client.SendMailAsync(mail).WaitAsync(TimeSpan.FromSeconds(timeoutSeconds));
+        }
+        catch (TimeoutException ex)
+        {
+            client.SendAsyncCancel();
+            throw new TimeoutException("Gửi email OTP quá thời gian chờ. Vui lòng kiểm tra cấu hình SMTP hoặc kết nối mạng.", ex);
+        }
     }
 }
