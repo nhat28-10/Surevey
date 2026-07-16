@@ -240,24 +240,24 @@ static string ResolvePostgresConnectionString(IConfiguration configuration, para
 {
     foreach (var name in connectionNames)
     {
-        var value = configuration.GetConnectionString(name);
+        var value = ResolveConfigurationReference(configuration, configuration.GetConnectionString(name));
         if (!string.IsNullOrWhiteSpace(value) && !IsPlaceholderConnectionString(value))
         {
-            return NormalizePostgresConnectionString(value);
+            return NormalizePostgresConnectionString(value, $"ConnectionStrings:{name}");
         }
     }
 
-    var databaseUrl = configuration["DATABASE_URL"] ?? configuration["POSTGRES_URL"];
+    var databaseUrl = ResolveConfigurationReference(configuration, configuration["DATABASE_URL"] ?? configuration["POSTGRES_URL"]);
     if (!string.IsNullOrWhiteSpace(databaseUrl) && !IsPlaceholderConnectionString(databaseUrl))
     {
-        return NormalizePostgresConnectionString(databaseUrl);
+        return NormalizePostgresConnectionString(databaseUrl, "DATABASE_URL/POSTGRES_URL");
     }
 
     throw new InvalidOperationException(
         $"Missing valid database connection string. Set ConnectionStrings__{connectionNames[0]} or DATABASE_URL with a real Neon/Postgres value, not a placeholder.");
 }
 
-static string NormalizePostgresConnectionString(string connectionString)
+static string NormalizePostgresConnectionString(string connectionString, string source)
 {
     var value = connectionString.Trim().Trim('"', '\'').Trim().Trim('<', '>');
     var postgresUrlIndex = IndexOfPostgresUrl(value);
@@ -276,7 +276,7 @@ static string NormalizePostgresConnectionString(string connectionString)
         catch (ArgumentException ex)
         {
             throw new InvalidOperationException(
-                "Invalid Postgres connection string. Use Neon/.NET format like 'Host=...;Database=...;Username=...;Password=...' or URL format 'postgresql://user:password@host/database?sslmode=require'.",
+                $"Invalid Postgres connection string from {source}. Safe preview: '{SafeConnectionStringPreview(value)}'. Use Neon/.NET format like 'Host=...;Database=...;Username=...;Password=...' or URL format 'postgresql://user:password@host/database?sslmode=require'.",
                 ex);
         }
     }
@@ -313,6 +313,42 @@ static bool IsPlaceholderConnectionString(string value)
         || trimmed.Equals("<DATABASE_URL>", StringComparison.OrdinalIgnoreCase)
         || trimmed.Equals("NEON_CONNECTION_STRING", StringComparison.OrdinalIgnoreCase)
         || trimmed.Equals("DATABASE_URL", StringComparison.OrdinalIgnoreCase);
+}
+
+static string? ResolveConfigurationReference(IConfiguration configuration, string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return value;
+    }
+
+    var trimmed = value.Trim().Trim('"', '\'');
+    if (trimmed.StartsWith("${", StringComparison.Ordinal) && trimmed.EndsWith("}", StringComparison.Ordinal))
+    {
+        var key = trimmed[2..^1];
+        return configuration[key] ?? Environment.GetEnvironmentVariable(key) ?? value;
+    }
+
+    if (trimmed.StartsWith('$') && trimmed.Length > 1 && !trimmed.Contains("://", StringComparison.Ordinal))
+    {
+        var key = trimmed[1..];
+        return configuration[key] ?? Environment.GetEnvironmentVariable(key) ?? value;
+    }
+
+    return value;
+}
+
+static string SafeConnectionStringPreview(string value)
+{
+    var trimmed = value.Trim();
+    if (trimmed.Length > 80)
+    {
+        trimmed = trimmed[..80] + "...";
+    }
+
+    return trimmed
+        .Replace("Password=", "Password=***", StringComparison.OrdinalIgnoreCase)
+        .Replace("Pwd=", "Pwd=***", StringComparison.OrdinalIgnoreCase);
 }
 
 static int IndexOfPostgresUrl(string value)
