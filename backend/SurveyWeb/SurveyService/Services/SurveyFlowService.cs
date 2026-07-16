@@ -164,6 +164,11 @@ public class SurveyFlowService : ISurveyFlowService
         campaign.RewardPerResponse = rewardPerResponse;
         campaign.IsEscrowed = true;
         campaign.EscrowedAt ??= now;
+        if (campaign.Status is CampaignStatus.DRAFT or CampaignStatus.PENDING_REVIEW)
+        {
+            campaign.Status = CampaignStatus.ACTIVE;
+            campaign.RejectReason = null;
+        }
         campaign.UpdatedAt = now;
 
         await _dbContext.SaveChangesAsync();
