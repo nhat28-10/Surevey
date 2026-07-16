@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using Microsoft.OpenApi.Models;
 using Yarp.ReverseProxy.Configuration;
 
+Environment.SetEnvironmentVariable("DOTNET_hostBuilder__reloadConfigOnChange", "false");
+
 var builder = WebApplication.CreateBuilder(args);
 
 var port = builder.Configuration["PORT"];
