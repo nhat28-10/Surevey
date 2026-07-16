@@ -1,411 +1,112 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
+import { toast } from "sonner";
+import { campaignApi } from "../../api/campaignApi";
+import type { Campaign, CampaignPayment } from "../../api/types";
+import { ApiError } from "../../api/httpClient";
 import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
-import {
-  PlusCircle,
-  ExternalLink,
-  Calendar,
-  Clock,
-  DollarSign,
-  Users,
-  XCircle,
-  Trash2,
-  Pencil,
-} from "lucide-react";
-import { Survey, SurveyStatus } from "../types/survey";
-import {
-  getSurveysByOwner,
-  getCurrentUser,
-  cancelSurvey,
-  deleteSurvey,
-  updateSurvey,
-} from "../services/surveyService";
-import { isAuthenticated } from "../services/authService";
-import { toast } from "sonner";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Calendar, ExternalLink, PlusCircle, RefreshCw, Send, WalletCards } from "lucide-react";
+
+const statusLabels: Record<string, string> = {
+  DRAFT: "Bản nháp", PENDING_REVIEW: "Chờ duyệt", ACTIVE: "Đang hoạt động", REJECTED: "Bị từ chối",
+  PAUSED: "Tạm dừng", COMPLETED: "Hoàn thành", CANCELLED: "Đã hủy", EXPIRED: "Hết hạn",
+};
+
+function errorText(error: unknown) {
+  return error instanceof ApiError || error instanceof Error ? error.message : "Không thể tải dữ liệu";
+}
 
 export function OwnerDashboard() {
-  const navigate = useNavigate();
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [editingSurvey, setEditingSurvey] = useState<{
-    id: string;
-    title: string;
-    description: string;
-  } | null>(null);
-  const currentUser = getCurrentUser();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<CampaignPayment | null>(null);
 
-  useEffect(() => {
-    // Redirect if not authenticated
-    if (!isAuthenticated()) {
-      navigate("/login");
-      return;
-    }
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setCampaigns(await campaignApi.myCampaigns()); }
+    catch (err) { setError(errorText(err)); }
+    finally { setLoading(false); }
+  }, []);
 
-    loadSurveys();
+  useEffect(() => { void load(); }, [load]);
 
-    const handleStorageChange = () => {
-      if (!isAuthenticated()) {
-        navigate("/login");
-        return;
-      }
-      loadSurveys();
-    };
+  const stats = useMemo(() => ({
+    total: campaigns.length,
+    active: campaigns.filter(c => c.status === "ACTIVE").length,
+    pending: campaigns.filter(c => c.status === "PENDING_REVIEW").length,
+    approved: campaigns.reduce((sum, c) => sum + c.approvedResponses, 0),
+    paidRewards: campaigns.reduce((sum, c) => sum + c.approvedResponses * c.rewardPerResponse, 0),
+  }), [campaigns]);
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [navigate]);
-
-  const loadSurveys = () => {
-    if (currentUser) {
-      const userSurveys = getSurveysByOwner(currentUser.id);
-      setSurveys(userSurveys);
-    }
-  };
-
-  const handleCancel = (surveyId: string) => {
-    const result = cancelSurvey(surveyId, currentUser.id);
-    if (result) {
-      toast.success("Đã hủy khảo sát thành công");
-      loadSurveys();
-      window.dispatchEvent(new Event("storage"));
-    } else {
-      toast.error("Không thể hủy khảo sát đã được bắt đầu");
-    }
-  };
-
-  const handleDelete = (surveyId: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa khảo sát này?")) {
-      const result = deleteSurvey(surveyId, currentUser.id);
-      if (result) {
-        toast.success("Đã xóa khảo sát thành công");
-        loadSurveys();
-        window.dispatchEvent(new Event("storage"));
+  const pay = async (campaign: Campaign) => {
+    setBusyId(campaign.id);
+    try {
+      const payment = await campaignApi.createPayment(campaign.id, {
+        targetResponses: campaign.targetResponses,
+        answerCount: campaign.answerCount,
+        unitPricePerAnswer: campaign.unitPricePerAnswer,
+      });
+      setPaymentInfo(payment);
+      const proof = window.prompt(
+        `Mã thanh toán: ${payment.paymentCode}\nSố tiền: ${payment.totalAmount.toLocaleString("vi-VN")} đ\nNgân hàng: ${payment.bankName}\nSố tài khoản: ${payment.bankAccountNumber}\nNội dung: ${payment.transferContent}\n\nNhập URL ảnh biên lai để gửi xác minh:`,
+        payment.proofImageUrl || "",
+      );
+      if (proof?.trim()) {
+        const updated = await campaignApi.submitPaymentProof(payment.id, { proofImageUrl: proof.trim() });
+        setPaymentInfo(updated);
+        toast.success("Đã gửi chứng từ tới API WalletService");
       } else {
-        toast.error("Không thể xóa khảo sát");
+        toast.info("Đã tạo yêu cầu thanh toán; bạn có thể bấm lại để gửi chứng từ");
       }
-    }
+      await load();
+    } catch (err) { toast.error(errorText(err)); }
+    finally { setBusyId(null); }
   };
 
-  const handleEditSave = () => {
-    if (!editingSurvey) return;
-    const result = updateSurvey(editingSurvey.id, {
-      title: editingSurvey.title,
-      description: editingSurvey.description,
-    });
-    if (result) {
-      toast.success("Đã cập nhật khảo sát thành công");
-      setEditingSurvey(null);
-      loadSurveys();
-      window.dispatchEvent(new Event("storage"));
-    } else {
-      toast.error("Không thể cập nhật khảo sát");
-    }
+  const submitReview = async (campaign: Campaign) => {
+    setBusyId(campaign.id);
+    try {
+      await campaignApi.submitForReview(campaign.id);
+      toast.success("Đã gửi campaign cho Admin duyệt");
+      await load();
+    } catch (err) { toast.error(errorText(err)); }
+    finally { setBusyId(null); }
   };
 
-  const getStatusColor = (status: SurveyStatus) => {
-    switch (status) {
-      case SurveyStatus.OPEN:
-        return "bg-green-500";
-      case SurveyStatus.IN_PROGRESS:
-        return "bg-blue-500";
-      case SurveyStatus.COMPLETED:
-        return "bg-gray-500";
-      case SurveyStatus.CANCELLED:
-        return "bg-red-500";
-      default:
-        return "bg-gray-500";
-    }
-  };
+  if (loading) return <div className="py-16 text-center text-gray-600">Đang tải campaign từ SurveyService...</div>;
 
-  const completionPercentage = (survey: Survey) => {
-    return Math.round((survey.completedCount / survey.targetCompletions) * 100);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Khảo sát của tôi</h1>
-          <p className="text-gray-600 mt-1">
-            Quản lý và theo dõi các khảo sát đã đăng
-          </p>
-        </div>
-        <Button asChild className="bg-green-600">
-          <Link to="/owner/post">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Đăng khảo sát mới
-          </Link>
-        </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Tổng số khảo sát</CardDescription>
-            <CardTitle className="text-3xl">{surveys.length}</CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Đang mở</CardDescription>
-            <CardTitle className="text-3xl text-green-600">
-              {surveys.filter((s) => s.status === SurveyStatus.OPEN).length}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Đang tiến hành</CardDescription>
-            <CardTitle className="text-3xl text-blue-600">
-              {
-                surveys.filter((s) => s.status === SurveyStatus.IN_PROGRESS)
-                  .length
-              }
-            </CardTitle>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Đã hoàn thành</CardDescription>
-            <CardTitle className="text-3xl text-gray-600">
-              {
-                surveys.filter((s) => s.status === SurveyStatus.COMPLETED)
-                  .length
-              }
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {/* Surveys List */}
-      {surveys.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center space-y-4">
-            <div className="flex justify-center">
-              <PlusCircle className="w-16 h-16 text-gray-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Chưa có khảo sát nào
-            </h3>
-            <p className="text-gray-600 max-w-md mx-auto">
-              Bắt đầu bằng cách đăng khảo sát đầu tiên của bạn. Đặt mức thưởng
-              và tiếp cận hàng trăm người tham gia tiềm năng.
-            </p>
-            <Button asChild className="bg-green-600 hover:bg-green-600">
-              <Link to="/owner/post">Đăng khảo sát đầu tiên</Link>
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
-          {surveys.map((survey) => (
-            <Card key={survey.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-xl">{survey.title}</CardTitle>
-                      <Badge className={getStatusColor(survey.status)}>
-                        {survey.status}
-                      </Badge>
-                    </div>
-                    <CardDescription>{survey.description}</CardDescription>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setEditingSurvey({
-                          id: survey.id,
-                          title: survey.title,
-                          description: survey.description,
-                        })
-                      }
-                    >
-                      <Pencil className="w-4 h-4 mr-1" />
-                      Sửa
-                    </Button>
-                    {survey.status === SurveyStatus.OPEN && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleCancel(survey.id)}
-                        className="bg-yellow-500 hover:bg-yellow-600"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Hủy
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(survey.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Xóa
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tiến độ hoàn thành</span>
-                    <span className="font-semibold">
-                      {survey.completedCount} / {survey.targetCompletions} phản
-                      hồi
-                    </span>
-                  </div>
-                  <Progress
-                    value={completionPercentage(survey)}
-                    className="h-2"
-                  />
-                  <p className="text-xs text-gray-500 text-right">
-                    {completionPercentage(survey)}% hoàn thành
-                  </p>
-                </div>
-
-                {/* Survey Details Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Phần thưởng</p>
-                      <p className="font-semibold">
-                        {survey.reward.toLocaleString("vi-VN")} đ
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Thời lượng</p>
-                      <p className="font-semibold">
-                        {survey.estimatedTime} phút
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-purple-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Hạn chót</p>
-                      <p className="font-semibold text-sm">
-                        {new Date(survey.deadline).toLocaleDateString("vi-VN")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-orange-600" />
-                    <div>
-                      <p className="text-xs text-gray-500">Đã chấp nhận</p>
-                      <p className="font-semibold">
-                        {survey.acceptedBy?.length || 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Survey Link */}
-                <div className="pt-4 border-t">
-                  {survey.surveyType === "internal" ? (
-                    <Link
-                      to={`/owner/survey/${survey.id}`}
-                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Xem chi tiết khảo sát
-                    </Link>
-                  ) : (
-                    <a
-                      href={survey.surveyLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Xem liên kết khảo sát
-                    </a>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog
-        open={editingSurvey !== null}
-        onOpenChange={(open) => { if (!open) setEditingSurvey(null); }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Chỉnh sửa khảo sát</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="edit-title">Tên khảo sát</Label>
-              <Input
-                id="edit-title"
-                value={editingSurvey?.title ?? ""}
-                onChange={(e) =>
-                  setEditingSurvey((prev) =>
-                    prev ? { ...prev, title: e.target.value } : prev
-                  )
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="edit-description">Mô tả</Label>
-              <Textarea
-                id="edit-description"
-                rows={4}
-                value={editingSurvey?.description ?? ""}
-                onChange={(e) =>
-                  setEditingSurvey((prev) =>
-                    prev ? { ...prev, description: e.target.value } : prev
-                  )
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingSurvey(null)}>
-              Hủy
-            </Button>
-            <Button onClick={handleEditSave}>Lưu</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+  return <div className="space-y-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div><h1 className="text-3xl font-bold">Campaign của tôi</h1><p className="text-gray-600 mt-1">Frontend dùng đúng các endpoint backend hiện có; không gọi API sửa, tạm dừng hoặc hủy vì backend chưa cung cấp.</p></div>
+      <div className="flex gap-2"><Button variant="outline" onClick={() => void load()}><RefreshCw className="w-4 h-4 mr-2"/>Tải lại</Button><Button asChild className="bg-green-600 hover:bg-green-700"><Link to="/customer/post"><PlusCircle className="w-4 h-4 mr-2"/>Tạo campaign</Link></Button></div>
     </div>
-  );
+
+    {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {[["Tổng campaign",stats.total],["Đang hoạt động",stats.active],["Chờ duyệt",stats.pending],["Phản hồi đã duyệt",stats.approved],["Đã trả thưởng",`${stats.paidRewards.toLocaleString("vi-VN")} đ`]].map(([label,value]) => <Card key={String(label)}><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{value}</CardContent></Card>)}
+    </div>
+
+    {paymentInfo && <Alert><WalletCards className="w-4 h-4"/><AlertDescription>Thanh toán <strong>{paymentInfo.paymentCode}</strong> — trạng thái <strong>{paymentInfo.status}</strong> — {paymentInfo.totalAmount.toLocaleString("vi-VN")} đ.</AlertDescription></Alert>}
+
+    {campaigns.length === 0 ? <Card><CardContent className="py-16 text-center"><p className="text-gray-600 mb-4">Chưa có campaign.</p><Button asChild><Link to="/customer/post">Tạo campaign đầu tiên</Link></Button></CardContent></Card> :
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">{campaigns.map(campaign => {
+        const progress = campaign.targetResponses ? Math.min(100, campaign.approvedResponses / campaign.targetResponses * 100) : 0;
+        const canSubmitReview = campaign.paymentStatus === "PAID" && ["DRAFT","REJECTED"].includes(campaign.status);
+        return <Card key={campaign.id} className="flex flex-col"><CardHeader><div className="flex items-start justify-between gap-2"><CardTitle className="text-lg">{campaign.title}</CardTitle><Badge variant="outline">{statusLabels[campaign.status] || campaign.status}</Badge></div></CardHeader><CardContent className="space-y-4 flex-1 flex flex-col">
+          <p className="text-sm text-gray-600 line-clamp-3">{campaign.description}</p>
+          <div><div className="flex justify-between text-sm mb-1"><span>{campaign.approvedResponses}/{campaign.targetResponses}</span><span>{Math.round(progress)}%</span></div><Progress value={progress}/></div>
+          <div className="text-sm space-y-1"><p>Thưởng: <strong>{campaign.rewardPerResponse.toLocaleString("vi-VN")} đ</strong></p><p className="flex items-center gap-1"><Calendar className="w-4 h-4"/>{new Date(campaign.deadline).toLocaleDateString("vi-VN")}</p><p>Thanh toán: <strong>{campaign.paymentStatus}</strong></p>{campaign.rejectReason && <p className="text-red-600">Lý do: {campaign.rejectReason}</p>}</div>
+          <div className="mt-auto flex flex-wrap gap-2"><Button size="sm" variant="outline" asChild><Link to={`/customer/campaign/${campaign.id}`}><ExternalLink className="w-4 h-4 mr-1"/>Chi tiết</Link></Button>
+            {campaign.paymentStatus !== "PAID" && <Button size="sm" disabled={busyId===campaign.id} onClick={() => void pay(campaign)}><WalletCards className="w-4 h-4 mr-1"/>Thanh toán</Button>}
+            {canSubmitReview && <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={busyId===campaign.id} onClick={() => void submitReview(campaign)}><Send className="w-4 h-4 mr-1"/>Gửi duyệt</Button>}
+          </div>
+        </CardContent></Card>;
+      })}</div>}
+  </div>;
 }

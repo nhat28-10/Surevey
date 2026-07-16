@@ -1,115 +1,110 @@
-// Controller: Authentication Service for user management
+import { authApi } from "../../api/authApi";
+import { ApiError, tokenStorage } from "../../api/httpClient";
+import type { LoginCredentials, SignupData, User, UserRole } from "../types/auth";
 
-import { User, LoginCredentials, SignupData } from '../types/auth';
+interface JwtPayload {
+  sub?: string;
+  email?: string;
+  userId?: string;
+  userName?: string;
+  fullName?: string;
+  role?: string;
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?: string;
+  exp?: number;
+}
 
-const USERS_STORAGE_KEY = 'sureVey_users';
-const CURRENT_USER_KEY = 'sureVey_currentUser';
-
-// Get all registered users (seeds admin account on first run)
-const getAllUsers = (): User[] => {
-  const stored = localStorage.getItem(USERS_STORAGE_KEY);
-  const users: User[] = stored ? JSON.parse(stored) : [];
-
-  if (!users.some(u => u.email === 'admin@gmail.com')) {
-    users.push({
-      id: 'admin_1',
-      email: 'admin@gmail.com',
-      name: 'Admin',
-      role: 'admin',
-      password: '123456',
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+function decodeJwt(token: string): JwtPayload | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return JSON.parse(decodeURIComponent(atob(padded).split("").map(char => `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`).join(""))) as JwtPayload;
+  } catch {
+    return null;
   }
+}
 
-  return users;
-};
+function normalizeRole(value?: string): UserRole | null {
+  if (!value) return null;
+  const role = value.toLowerCase();
+  if (role === "customer") return "Customer";
+  if (role === "collaborator") return "Collaborator";
+  if (role === "admin") return "Admin";
+  return null;
+}
 
-// Save users to localStorage
-const saveUsers = (users: User[]): void => {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-};
-
-// Get current logged-in user
-export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem(CURRENT_USER_KEY);
-  return stored ? JSON.parse(stored) : null;
-};
-
-// Check if user is authenticated
-export const isAuthenticated = (): boolean => {
-  return getCurrentUser() !== null;
-};
-
-// Signup new user
-export const signup = (data: SignupData): { success: boolean; error?: string; user?: User } => {
-  const users = getAllUsers();
-  
-  // Check if email already exists
-  if (users.some(u => u.email === data.email)) {
-    return { success: false, error: 'Email đã được sử dụng' };
-  }
-  
-  // Create new user
-  const newUser: User = {
-    id: `user_${Date.now()}`,
-    email: data.email,
-    name: data.name,
-    role: data.role,
-    createdAt: new Date().toISOString()
+function userFromToken(token: string): User | null {
+  const payload = decodeJwt(token);
+  if (!payload || (payload.exp && payload.exp * 1000 <= Date.now())) return null;
+  const role = normalizeRole(payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]);
+  const id = payload.userId || payload.sub;
+  if (!id || !role) return null;
+  return {
+    id,
+    email: payload.email || "",
+    name: payload.fullName || payload.userName || payload.email || "Người dùng",
+    role,
   };
-  
-  users.push(newUser);
-  saveUsers(users);
-  
-  // Auto login after signup
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
-  
-  return { success: true, user: newUser };
-};
+}
 
-// Login user
-export const login = (credentials: LoginCredentials): { success: boolean; error?: string; user?: User } => {
-  const users = getAllUsers();
-  
-  const user = users.find(u => u.email === credentials.email);
-
+function finishAuthentication(token: string): User | null {
+  tokenStorage.set(token);
+  const user = userFromToken(token);
   if (!user) {
-    return { success: false, error: 'Email hoặc mật khẩu không đúng' };
+    tokenStorage.clear();
+    return null;
   }
+  window.dispatchEvent(new Event("auth-changed"));
+  return user;
+}
 
-  // Validate password when stored (e.g. admin account)
-  if (user.password && user.password !== credentials.password) {
-    return { success: false, error: 'Email hoặc mật khẩu không đúng' };
-  }
+function errorMessage(error: unknown): string {
+  if (error instanceof ApiError || error instanceof Error) return error.message;
+  return "Không thể kết nối đến máy chủ";
+}
 
-  // Strip password before storing in session
-  const { password: _pw, ...sessionUser } = user;
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sessionUser));
-  
-  return { success: true, user: sessionUser };
+export const getCurrentUser = (): User | null => {
+  const token = tokenStorage.get();
+  if (!token) return null;
+  const user = userFromToken(token);
+  if (!user) tokenStorage.clear();
+  return user;
 };
 
-// Logout user
+export const isAuthenticated = (): boolean => getCurrentUser() !== null;
+
+export const signup = async (data: SignupData): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    await authApi.register({
+      userName: data.userName.trim(),
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      confirmPassword: data.confirmPassword,
+      fullName: data.name.trim(),
+      roleId: data.role === "Collaborator" ? 1 : 2,
+    });
+
+    // Backend gốc chỉ trả message khi đăng ký, nên frontend đăng nhập ngay sau đó.
+    const response = await authApi.login({ email: data.email.trim().toLowerCase(), password: data.password });
+    const user = finishAuthentication(response.token);
+    return user ? { success: true, user } : { success: false, error: "JWT backend trả về không hợp lệ" };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+};
+
+export const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string; user?: User }> => {
+  try {
+    const response = await authApi.login({ email: credentials.email.trim().toLowerCase(), password: credentials.password });
+    const user = finishAuthentication(response.token);
+    return user ? { success: true, user } : { success: false, error: "JWT backend trả về không hợp lệ" };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+};
+
 export const logout = (): void => {
-  localStorage.removeItem(CURRENT_USER_KEY);
-};
-
-// Switch user role (for demo purposes)
-export const switchUserRole = (role: 'owner' | 'helper'): User | null => {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return null;
-  
-  const updatedUser = { ...currentUser, role };
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
-  
-  // Update in users list
-  const users = getAllUsers();
-  const index = users.findIndex(u => u.id === currentUser.id);
-  if (index !== -1) {
-    users[index] = updatedUser;
-    saveUsers(users);
-  }
-  
-  return updatedUser;
+  tokenStorage.clear();
+  window.dispatchEvent(new Event("auth-changed"));
 };

@@ -1,244 +1,73 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { adminApi } from "../../api/adminApi";
+import type { AdminRevenueSummary, Campaign, CampaignPayment, UserProfile, Withdrawal } from "../../api/types";
+import { ApiError } from "../../api/httpClient";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Dialog, DialogContent } from "./ui/dialog";
-import {
-  CheckCircle,
-  Clock,
-  DollarSign,
-  User,
-  Mail,
-  Calendar,
-  ShieldCheck,
-  Inbox,
-  ZoomIn,
-} from "lucide-react";
-import {
-  getAllWithdrawRequests,
-  completeWithdrawRequest,
-  type WithdrawRequest,
-} from "../services/withdrawService";
-import { getCurrentUser, isAuthenticated } from "../services/authService";
+import { Alert, AlertDescription } from "./ui/alert";
+import { RefreshCw } from "lucide-react";
+
+function text(error: unknown) { return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu"; }
 
 export function AdminProcessRequests() {
-  const navigate = useNavigate();
-  const [requests, setRequests] = useState<WithdrawRequest[]>([]);
-  const [previewImg, setPreviewImg] = useState<{ src: string; name: string } | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [payments, setPayments] = useState<CampaignPayment[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [revenue, setRevenue] = useState<AdminRevenueSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
 
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (!isAuthenticated() || user?.role !== "admin") {
-      navigate("/login");
-      return;
-    }
-    loadRequests();
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const [campaignData, paymentData, withdrawalData, userData, revenueData] = await Promise.all([
+        adminApi.pendingCampaigns(), adminApi.payments(), adminApi.withdrawals(), adminApi.users(), adminApi.revenueSummary(),
+      ]);
+      setCampaigns(campaignData); setPayments(paymentData); setWithdrawals(withdrawalData); setUsers(userData.items); setRevenue(revenueData);
+    } catch (err) { setError(text(err)); }
+    finally { setLoading(false); }
+  }, []);
 
-    const handleStorage = () => loadRequests();
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [navigate]);
+  useEffect(() => { void load(); }, [load]);
 
-  const loadRequests = () => {
-    const all = getAllWithdrawRequests();
-    // newest first
-    setRequests([...all].sort(
-      (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
-    ));
+  const run = async (key: string, action: () => Promise<unknown>, success: string) => {
+    setBusy(key);
+    try { await action(); toast.success(success); await load(); }
+    catch (err) { toast.error(text(err)); }
+    finally { setBusy(""); }
   };
 
-  const handleFinish = (id: string) => {
-    completeWithdrawRequest(id);
-    window.dispatchEvent(new Event("storage"));
-  };
+  if (loading) return <div className="py-16 text-center">Đang tải dữ liệu Admin từ 3 service...</div>;
 
-  const pending = requests.filter(r => r.status === "pending").length;
-  const completed = requests.filter(r => r.status === "completed").length;
+  return <div className="space-y-6">
+    <div className="flex justify-between gap-3 items-center"><div><h1 className="text-3xl font-bold">Quản trị hệ thống</h1><p className="text-gray-600 mt-1">Chỉ dùng các API có sẵn trong backend gốc.</p></div><Button variant="outline" onClick={() => void load()}><RefreshCw className="w-4 h-4 mr-2"/>Tải lại</Button></div>
+    {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <ShieldCheck className="w-8 h-8 text-blue-600" />
-            Xử lý yêu cầu rút tiền
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Quản lý và xét duyệt các yêu cầu rút tiền của người dùng
-          </p>
-        </div>
+    <div className="grid sm:grid-cols-3 gap-4"><Stat label="Tổng tiền đã xác minh" value={`${(revenue?.totalPaidAmount || 0).toLocaleString("vi-VN")} đ`}/><Stat label="Phí nền tảng" value={`${(revenue?.totalPlatformFeeAmount || 0).toLocaleString("vi-VN")} đ`}/><Stat label="Thanh toán chờ xác minh" value={revenue?.pendingVerifyPaymentCount || 0}/></div>
 
-        {/* Stats */}
-        <div className="flex gap-3">
-          <div className="text-center px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-xl">
-            <p className="text-2xl font-bold text-yellow-700">{pending}</p>
-            <p className="text-xs text-yellow-600">Chờ xử lý</p>
-          </div>
-          <div className="text-center px-4 py-2 bg-green-50 border border-green-200 rounded-xl">
-            <p className="text-2xl font-bold text-green-700">{completed}</p>
-            <p className="text-xs text-green-600">Đã hoàn thành</p>
-          </div>
-        </div>
-      </div>
+    <Tabs defaultValue="payments">
+      <TabsList className="flex flex-wrap h-auto"><TabsTrigger value="payments">Thanh toán ({payments.length})</TabsTrigger><TabsTrigger value="campaigns">Campaign chờ duyệt ({campaigns.length})</TabsTrigger><TabsTrigger value="withdrawals">Rút tiền ({withdrawals.length})</TabsTrigger><TabsTrigger value="users">Người dùng ({users.length})</TabsTrigger></TabsList>
 
-      {/* Requests List */}
-      {requests.length === 0 ? (
-        <Card className="p-16">
-          <div className="text-center space-y-4">
-            <Inbox className="w-16 h-16 text-gray-300 mx-auto" />
-            <h3 className="text-xl font-semibold text-gray-500">
-              Chưa có yêu cầu nào
-            </h3>
-            <p className="text-gray-400 text-sm">
-              Các yêu cầu rút tiền từ người dùng sẽ hiển thị ở đây.
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {requests.map((req) => (
-            <Card
-              key={req.id}
-              className={`transition-shadow hover:shadow-md ${
-                req.status === "completed"
-                  ? "opacity-70 bg-gray-50"
-                  : "border-yellow-200 bg-white"
-              }`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{req.helperName}</CardTitle>
-                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                        <Mail className="w-3 h-3" />
-                        {req.helperEmail}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge
-                    className={
-                      req.status === "completed"
-                        ? "bg-green-100 text-green-700 border border-green-200"
-                        : "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                    }
-                  >
-                    {req.status === "completed" ? (
-                      <>
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Đã hoàn thành
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-3 h-3 mr-1" />
-                        Chờ xử lý
-                      </>
-                    )}
-                  </Badge>
-                </div>
-              </CardHeader>
+      <TabsContent value="payments" className="space-y-3 mt-4">{payments.length===0?<Empty text="Chưa có thanh toán."/>:payments.map(payment => <Card key={payment.id}><CardContent className="py-4 space-y-3"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div><strong>{payment.paymentCode}</strong><p className="text-sm text-gray-500">Campaign #{payment.campaignId} • Customer #{payment.customerId}</p></div><Badge variant="outline">{payment.status}</Badge></div><div className="grid sm:grid-cols-3 gap-2 text-sm"><span>Tổng: <strong>{payment.totalAmount.toLocaleString("vi-VN")} đ</strong></span><span>Ngân sách: {payment.rewardBudget.toLocaleString("vi-VN")} đ</span><span>Phí: {payment.platformFeeAmount.toLocaleString("vi-VN")} đ</span></div>{payment.proofImageUrl&&<a href={payment.proofImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">Mở chứng từ</a>}{payment.rejectReason&&<p className="text-red-600 text-sm">{payment.rejectReason}</p>}
+        {payment.status==="PENDING_VERIFY"&&<div className="flex gap-2"><Button disabled={busy===`p-${payment.id}`} onClick={() => void run(`p-${payment.id}`,()=>adminApi.approvePayment(payment.id),"Đã duyệt thanh toán")}>Duyệt</Button><Button variant="destructive" disabled={busy===`p-${payment.id}`} onClick={() => { const reason=window.prompt("Lý do từ chối:"); if(reason?.trim()) void run(`p-${payment.id}`,()=>adminApi.rejectPayment(payment.id,reason.trim()),"Đã từ chối thanh toán"); }}>Từ chối</Button></div>}
+      </CardContent></Card>)}</TabsContent>
 
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {/* Amount */}
-                  <div className="flex items-start gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-gray-500">Số tiền</p>
-                      <p className="font-bold text-green-700">
-                        {req.amount.toLocaleString("vi-VN")} đ
-                      </p>
-                    </div>
-                  </div>
+      <TabsContent value="campaigns" className="space-y-3 mt-4">{campaigns.length===0?<Empty text="Không có campaign PENDING_REVIEW."/>:campaigns.map(campaign => <Card key={campaign.id}><CardContent className="py-4 space-y-3"><div className="flex justify-between gap-2"><div><strong>{campaign.title}</strong><p className="text-sm text-gray-500">Customer #{campaign.customerId} • {campaign.totalAmount.toLocaleString("vi-VN")} đ</p></div><Badge variant="outline">{campaign.status}</Badge></div><p className="text-sm">{campaign.description}</p><div className="flex gap-2"><Button disabled={busy===`c-${campaign.id}`} onClick={() => void run(`c-${campaign.id}`,()=>adminApi.approveCampaign(campaign.id),"Đã duyệt campaign")}>Duyệt</Button><Button variant="destructive" disabled={busy===`c-${campaign.id}`} onClick={() => { const reason=window.prompt("Lý do từ chối:"); if(reason?.trim()) void run(`c-${campaign.id}`,()=>adminApi.rejectCampaign(campaign.id,reason.trim()),"Đã từ chối campaign"); }}>Từ chối</Button></div></CardContent></Card>)}</TabsContent>
 
-                  {/* Requested at */}
-                  <div className="flex items-start gap-2">
-                    <Calendar className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-gray-500">Thời gian yêu cầu</p>
-                      <p className="text-sm font-medium text-gray-700">
-                        {new Date(req.requestedAt).toLocaleString("vi-VN")}
-                      </p>
-                    </div>
-                  </div>
+      <TabsContent value="withdrawals" className="space-y-3 mt-4">{withdrawals.length===0?<Empty text="Chưa có yêu cầu rút tiền."/>:withdrawals.map(item => <Card key={item.id}><CardContent className="py-4 space-y-3"><div className="flex justify-between"><div><strong>{item.amount.toLocaleString("vi-VN")} đ</strong><p className="text-sm text-gray-500">Collaborator #{item.collaboratorId} • {item.bankName} • {item.bankAccountNumber}</p></div><Badge variant="outline">{item.status}</Badge></div>{item.rejectReason&&<p className="text-sm text-red-600">{item.rejectReason}</p>}
+        {item.status==="PENDING"&&<div className="flex gap-2"><Button disabled={busy===`w-${item.id}`} onClick={() => void run(`w-${item.id}`,()=>adminApi.approveWithdrawal(item.id),"Đã duyệt yêu cầu rút")}>Duyệt</Button><Button variant="destructive" disabled={busy===`w-${item.id}`} onClick={() => { const reason=window.prompt("Lý do từ chối:"); if(reason?.trim()) void run(`w-${item.id}`,()=>adminApi.rejectWithdrawal(item.id,reason.trim()),"Đã từ chối yêu cầu"); }}>Từ chối</Button></div>}
+        {item.status==="APPROVED"&&<Button disabled={busy===`w-${item.id}`} onClick={() => void run(`w-${item.id}`,()=>adminApi.markWithdrawalPaid(item.id),"Đã đánh dấu đã thanh toán")}>Đánh dấu đã trả</Button>}
+      </CardContent></Card>)}</TabsContent>
 
-                  {/* Completed at */}
-                  {req.completedAt && (
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-500">Thời gian hoàn thành</p>
-                        <p className="text-sm font-medium text-gray-700">
-                          {new Date(req.completedAt).toLocaleString("vi-VN")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Bank QR Image */}
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Mã QR ngân hàng
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      onClick={() =>
-                        setPreviewImg({ src: req.bankQrImage, name: req.helperName })
-                      }
-                      className="relative group h-40 w-40 rounded-xl border border-gray-200 bg-gray-50 p-2 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                      title="Nhấp để phóng to"
-                    >
-                      <img
-                        src={req.bankQrImage}
-                        alt={`QR Code của ${req.helperName}`}
-                        className="h-full w-full object-contain"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-xl">
-                        <ZoomIn className="w-7 h-7 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Action */}
-                {req.status === "pending" && (
-                  <div className="pt-2 border-t">
-                    <Button
-                      onClick={() => handleFinish(req.id)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Hoàn thành yêu cầu
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* QR lightbox */}
-      <Dialog open={!!previewImg} onOpenChange={() => setPreviewImg(null)}>
-        <DialogContent className="sm:max-w-lg flex flex-col items-center gap-4 p-6">
-          <p className="text-sm font-medium text-gray-600 self-start">
-            Mã QR ngân hàng — {previewImg?.name}
-          </p>
-          {previewImg && (
-            <img
-              src={previewImg.src}
-              alt={`QR Code của ${previewImg.name}`}
-              className="w-full max-h-[70vh] object-contain rounded-xl border border-gray-200 bg-gray-50 p-4"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+      <TabsContent value="users" className="mt-4"><Card><CardContent className="p-0 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-gray-50"><th className="p-3 text-left">ID</th><th className="p-3 text-left">Tên đăng nhập</th><th className="p-3 text-left">Họ tên</th><th className="p-3 text-left">Email</th><th className="p-3 text-left">Thao tác Wallet</th></tr></thead><tbody>{users.map(user => <tr key={user.userId} className="border-b"><td className="p-3">{user.userId}</td><td className="p-3">{user.userName}</td><td className="p-3">{user.fullName || "-"}</td><td className="p-3">{user.email}</td><td className="p-3"><Button size="sm" variant="outline" disabled={busy===`u-${user.userId}`} onClick={() => { const amount=Number(window.prompt("Số tiền top-up:","10000")); if(amount>0) void run(`u-${user.userId}`,()=>adminApi.topup(user.userId,amount,"Admin top-up từ giao diện"),"Đã top-up ví"); }}>Top-up</Button></td></tr>)}</tbody></table>{users.length===0&&<div className="py-12 text-center text-gray-500">Không có dữ liệu user.</div>}</CardContent></Card><Alert className="mt-4"><AlertDescription>UserService backend gốc không trả role và không có API khóa/mở tài khoản, nên frontend chỉ hiển thị dữ liệu và top-up qua WalletService.</AlertDescription></Alert></TabsContent>
+    </Tabs>
+  </div>;
 }
+
+function Stat({label,value}:{label:string;value:number|string}) { return <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{value}</CardContent></Card>; }
+function Empty({text}:{text:string}) { return <Card><CardContent className="py-12 text-center text-gray-500">{text}</CardContent></Card>; }

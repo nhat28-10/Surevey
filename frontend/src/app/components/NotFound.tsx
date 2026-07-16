@@ -21,7 +21,7 @@ export function NotFound() {
           </Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/helper/marketplace">
+          <Link to="/collaborator/marketplace">
             <Search className="w-4 h-4 mr-2" />
             Tìm khảo sát
           </Link>
