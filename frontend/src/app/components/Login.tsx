@@ -29,18 +29,18 @@ export function Login() {
     setError("");
     setIsLoading(true);
 
-    const result = login(formData);
+    const result = await login(formData);
 
     setIsLoading(false);
 
     if (result.success) {
       // Navigate based on role
-      if (result.user?.role === "admin") {
-        navigate("/admin/requests");
-      } else if (result.user?.role === "owner") {
-        navigate("/owner/dashboard");
+      if (result.user?.role === "Admin") {
+        navigate("/admin");
+      } else if (result.user?.role === "Customer") {
+        navigate("/customer/dashboard");
       } else {
-        navigate("/helper/marketplace");
+        navigate("/collaborator/marketplace");
       }
       // Force re-render
       window.dispatchEvent(new Event("storage"));
@@ -103,14 +103,14 @@ export function Login() {
               />
             </div>
             <div className="flex flex-col gap-4 mt-5">
-              <Button variant="outline" className="w-full">
+              <Button type="button" variant="outline" className="w-full" disabled title="Chưa cấu hình Google OAuth">
                 <img
                   src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                   alt="Google"
                   width="18"
                   height="18"
                 />
-                Đăng nhập bằng Google
+                Đăng nhập Google (chưa cấu hình)
               </Button>
             </div>
           </CardContent>

@@ -1,282 +1,84 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import {
-  CheckCircle2,
-  Circle,
-  ChevronRight,
-  ChevronLeft,
-  Send,
-  Clock,
-  FileText,
-} from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Textarea } from "../components/ui/textarea";
-import { Progress } from "../components/ui/progress";
-import {
-  getAllSurveys,
-  addHelperFinishedSurvey,
-  completeSurvey,
-} from "../services/surveyService";
-import { getCurrentUser } from "../services/authService";
-import type { Survey, SurveyQuestion } from "../types/survey";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { toast } from "sonner";
+import { participationApi } from "../../api/participationApi";
+import type { Participation } from "../../api/types";
+import { ApiError } from "../../api/httpClient";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Alert, AlertDescription } from "./ui/alert";
+import { ExternalLink } from "lucide-react";
 
-type Answers = Record<string, string>;
+function errorText(error: unknown) {
+  return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu";
+}
 
-export const SurveyDoing = () => {
-  const { surveyId } = useParams<{ surveyId: string }>();
+export function SurveyDoing() {
+  const { surveyId } = useParams();
   const navigate = useNavigate();
-
-  const [survey, setSurvey] = useState<Survey | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
-  const [submitted, setSubmitted] = useState(false);
+  const participationId = Number(surveyId);
+  const [participation, setParticipation] = useState<Participation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ confirmationCode: "", proofImageUrl: "", contactEmail: "", contactPhone: "", note: "" });
 
   useEffect(() => {
-    const all = getAllSurveys();
-    const found = all.find((s) => s.id === surveyId) ?? null;
-    setSurvey(found);
-  }, [surveyId]);
+    void (async () => {
+      try {
+        const mine = await participationApi.mine();
+        const found = mine.find(item => item.id === participationId) || null;
+        if (!found?.campaign) setError("Không tìm thấy participation hoặc backend không trả campaign kèm theo.");
+        else setParticipation(found);
+      } catch (err) { setError(errorText(err)); }
+      finally { setLoading(false); }
+    })();
+  }, [participationId]);
 
-  if (!survey) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <p className="text-zinc-400 text-sm">Không tìm thấy khảo sát.</p>
-      </div>
-    );
-  }
-
-  const questions: SurveyQuestion[] = survey.internalQuestions ?? [];
-  const total = questions.length;
-  const current = questions[currentIndex];
-  const progress =
-    total === 0
-      ? 100
-      : Math.round(
-          ((currentIndex + (answers[current?.id] ? 1 : 0)) / total) * 100,
-        );
-  const answeredCount = Object.keys(answers).length;
-
-  const handleSelect = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
-
-  const handleNext = () => {
-    if (currentIndex < total - 1) setCurrentIndex((i) => i + 1);
-  };
-
-  const handleBack = () => {
-    if (currentIndex > 0) setCurrentIndex((i) => i - 1);
-  };
-
-  const handleSubmit = () => {
-    const user = getCurrentUser();
-    if (user && survey) {
-      addHelperFinishedSurvey(user.id, {
-        surveyId: survey.id,
-        title: survey.title,
-        surveyType: survey.surveyType,
-        reward: survey.reward,
-        finishedAt: new Date().toISOString(),
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!participation) return;
+    if (!form.confirmationCode.trim()) { setError("Confirmation code là bắt buộc theo backend."); return; }
+    setSubmitting(true); setError("");
+    try {
+      await participationApi.submit(participation.id, {
+        confirmationCode: form.confirmationCode.trim(),
+        proofImageUrl: form.proofImageUrl.trim() || undefined,
+        contactEmail: form.contactEmail.trim() || undefined,
+        contactPhone: form.contactPhone.trim() || undefined,
+        note: form.note.trim() || undefined,
       });
-      completeSurvey(survey.id, user.id);
-      window.dispatchEvent(new Event("storage"));
-    }
-    setSubmitted(true);
+      toast.success("Đã nộp submission vào SurveyService");
+      navigate("/collaborator/activities");
+    } catch (err) { setError(errorText(err)); }
+    finally { setSubmitting(false); }
   };
 
-  const isCurrentAnswered = current ? !!answers[current.id] : false;
-  const isLast = currentIndex === total - 1;
-  const allAnswered = answeredCount === total;
+  if (loading) return <div className="py-16 text-center">Đang tải participation...</div>;
+  if (!participation?.campaign) return <Alert variant="destructive"><AlertDescription>{error || "Không tìm thấy dữ liệu"}</AlertDescription></Alert>;
 
-  /* ── Submitted state ── */
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-zinc-900 mb-2">
-            Đã nộp khảo sát!
-          </h2>
-          <p className="text-sm text-zinc-500 mb-6">
-            Cảm ơn bạn đã hoàn thành{" "}
-            <span className="font-medium text-zinc-700">{survey.title}</span>.
-            Phần thưởng sẽ được ghi nhận sớm.
-          </p>
-          <Button
-            className="bg-green-600 text-white hover:bg-green-700 rounded-full px-6"
-            onClick={() => navigate("/helper/marketplace")}
-          >
-            Quay lại thị trường
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const campaign = participation.campaign;
+  const alreadySubmitted = ["SUBMITTED", "APPROVED"].includes(participation.status);
 
-  /* ── Empty survey guard ── */
-  if (total === 0) {
-    return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
-        <div className="text-center max-w-sm">
-          <FileText className="w-10 h-10 text-zinc-300 mx-auto mb-4" />
-          <p className="text-zinc-500 text-sm">
-            Khảo sát này chưa có câu hỏi nào.
-          </p>
-          <Button
-            variant="ghost"
-            className="mt-4 text-sm"
-            onClick={() => navigate(-1)}
-          >
-            Quay lại
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  return <div className="max-w-3xl mx-auto space-y-5">
+    {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+    <Card><CardHeader><CardTitle>{campaign.title}</CardTitle><CardDescription>{campaign.description}</CardDescription></CardHeader><CardContent className="space-y-4">
+      <div className="rounded-lg bg-gray-50 p-4 text-sm whitespace-pre-wrap">{campaign.instruction}</div>
+      <div className="grid sm:grid-cols-3 gap-3 text-sm"><div>Thưởng: <strong>{campaign.rewardPerResponse.toLocaleString("vi-VN")} đ</strong></div><div>Trạng thái: <strong>{participation.status}</strong></div><div>Hạn: <strong>{new Date(campaign.deadline).toLocaleString("vi-VN")}</strong></div></div>
+      {campaign.googleFormUrl ? <Button type="button" onClick={() => window.open(campaign.googleFormUrl!, "_blank", "noopener,noreferrer")}><ExternalLink className="w-4 h-4 mr-2"/>Mở khảo sát bên ngoài</Button> : <Alert variant="destructive"><AlertDescription>Campaign không có GoogleFormUrl. Backend hiện chưa triển khai Internal Form Builder.</AlertDescription></Alert>}
+    </CardContent></Card>
 
-  return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col">
-      {/* ── Header ── */}
-      <header className="bg-white border-b border-zinc-200 px-4 py-4 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-1">
-            <h1 className="text-sm font-semibold text-zinc-900 truncate max-w-[60%]">
-              {survey.title}
-            </h1>
-            <div className="flex items-center gap-3 text-xs text-zinc-400 shrink-0">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {survey.estimatedTime} phút
-              </span>
-              <span className="font-medium text-zinc-600">
-                {currentIndex + 1} / {total}
-              </span>
-            </div>
-          </div>
-          <Progress
-            value={progress}
-            className="h-1 bg-zinc-100 [&>div]:bg-green-700"
-          />
-        </div>
-      </header>
-
-      {/* ── Question area ── */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-2xl">
-          {/* Question card */}
-          <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm mb-5">
-            <span className="inline-block text-xs font-medium text-zinc-400 mb-3 tracking-wide uppercase">
-              Câu {currentIndex + 1}
-            </span>
-            <p className="text-base font-medium text-zinc-900 leading-relaxed mb-6">
-              {current.text || (
-                <span className="text-zinc-400 italic">
-                  Chưa có nội dung câu hỏi
-                </span>
-              )}
-            </p>
-
-            {/* Multiple choice */}
-            {current.type === "multiple_choice" && current.options && (
-              <div className="space-y-2.5">
-                {current.options.map((option, idx) => {
-                  const selected = answers[current.id] === option;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleSelect(current.id, option)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left text-sm transition-all duration-150
-                        ${
-                          selected
-                            ? "bg-green-600 text-white"
-                            : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-400 hover:bg-white"
-                        }`}
-                    >
-                      {selected ? (
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      ) : (
-                        <Circle className="w-4 h-4 shrink-0 text-zinc-300" />
-                      )}
-                      <span>{option}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Free text */}
-            {current.type === "text" && (
-              <Textarea
-                value={answers[current.id] ?? ""}
-                onChange={(e) => handleSelect(current.id, e.target.value)}
-                placeholder="Nhập câu trả lời của bạn..."
-                rows={4}
-                className="resize-none rounded-xl border-zinc-200 focus-visible:ring-zinc-400 text-sm"
-              />
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentIndex === 0}
-              className="rounded-full px-5 border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Trước
-            </Button>
-
-            <div className="flex-1" />
-
-            {isLast ? (
-              <Button
-                onClick={handleSubmit}
-                disabled={!allAnswered}
-                className="rounded-full px-6 bg-green-700 text-white hover:bg-green-800 disabled:opacity-40 flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Nộp khảo sát
-                {!allAnswered && (
-                  <span className="ml-1 text-xs opacity-70">
-                    ({answeredCount}/{total})
-                  </span>
-                )}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleNext}
-                disabled={!isCurrentAnswered}
-                className="rounded-full px-5 bg-green-700 text-white hover:bg-green-800 disabled:opacity-40"
-              >
-                Tiếp
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            )}
-          </div>
-
-          {/* Dot navigation */}
-          <div className="flex justify-center gap-1.5 mt-8">
-            {questions.map((q, i) => (
-              <button
-                key={q.id}
-                onClick={() => setCurrentIndex(i)}
-                className={`h-2 rounded-full transition-all duration-150
-                  ${
-                    i === currentIndex
-                      ? "bg-green-700 w-5"
-                      : answers[q.id]
-                        ? "bg-zinc-400 w-2"
-                        : "bg-zinc-200 w-2"
-                  }`}
-              />
-            ))}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-};
+    <Card><CardHeader><CardTitle>Nộp kết quả</CardTitle><CardDescription>Request gửi đúng SubmitSubmissionRequest của backend.</CardDescription></CardHeader><CardContent>
+      {alreadySubmitted ? <Alert><AlertDescription>Participation đã ở trạng thái {participation.status}; backend không cho tạo thêm submission pending/approved.</AlertDescription></Alert> : <form onSubmit={submit} className="space-y-4">
+        <div className="space-y-2"><Label htmlFor="code">Confirmation code *</Label><Input id="code" value={form.confirmationCode} onChange={e => setForm({...form,confirmationCode:e.target.value})} required maxLength={32}/></div>
+        <div className="space-y-2"><Label htmlFor="proof">URL bằng chứng</Label><Input id="proof" type="url" value={form.proofImageUrl} onChange={e => setForm({...form,proofImageUrl:e.target.value})} maxLength={1000}/></div>
+        <div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="email">Email liên hệ</Label><Input id="email" type="email" value={form.contactEmail} onChange={e => setForm({...form,contactEmail:e.target.value})} maxLength={200}/></div><div className="space-y-2"><Label htmlFor="phone">Số điện thoại</Label><Input id="phone" value={form.contactPhone} onChange={e => setForm({...form,contactPhone:e.target.value})} maxLength={30}/></div></div>
+        <div className="space-y-2"><Label htmlFor="note">Ghi chú</Label><Textarea id="note" value={form.note} onChange={e => setForm({...form,note:e.target.value})} maxLength={2000}/></div>
+        <Button type="submit" disabled={submitting}>{submitting ? "Đang nộp..." : "Nộp submission"}</Button>
+      </form>}
+    </CardContent></Card>
+  </div>;
+}

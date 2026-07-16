@@ -25,11 +25,11 @@ public class UserService : IUserService
 
         if (user.RoleId == 0)
         {
-            var memberRole = _roleRepository.GetByName("Member");
-            if (memberRole == null)
-                throw new Exception("Vai trò 'Member' chưa được khởi tạo");
-            user.RoleId = memberRole.RoleId;
-            user.Role = memberRole;
+            var collaboratorRole = _roleRepository.GetByName("Collaborator");
+            if (collaboratorRole == null)
+                throw new Exception("Vai tro 'Collaborator' chua duoc khoi tao");
+            user.RoleId = collaboratorRole.RoleId;
+            user.Role = collaboratorRole;
         }
 
         if (user.DateOfBirth.HasValue && user.DateOfBirth.Value.Kind == DateTimeKind.Unspecified)
@@ -73,8 +73,9 @@ public class UserService : IUserService
             Sex = user.Sex,
             Address = user.Address,
             PhoneNumber = user.PhoneNumber,
-            DateOfBirth = user.DateOfBirth ?? DateTime.MinValue,
-            FullName = user.FullName
+            DateOfBirth = user.DateOfBirth,
+            FullName = user.FullName,
+            RoleName = user.Role?.RoleName
         };
     }
 
@@ -83,10 +84,10 @@ public class UserService : IUserService
         var existingUser = _userRepository.GetById(userInfo.UserId);
         if (existingUser == null) throw new Exception("Người dùng không tồn tại.");
 
-        if (userInfo.DateOfBirth.Kind == DateTimeKind.Unspecified)
-            userInfo.DateOfBirth = DateTime.SpecifyKind(userInfo.DateOfBirth, DateTimeKind.Utc);
+        if (userInfo.DateOfBirth.HasValue && userInfo.DateOfBirth.Value.Kind == DateTimeKind.Unspecified)
+            userInfo.DateOfBirth = DateTime.SpecifyKind(userInfo.DateOfBirth.Value, DateTimeKind.Utc);
 
-        existingUser.DateOfBirth = userInfo.DateOfBirth.Date;
+        existingUser.DateOfBirth = userInfo.DateOfBirth?.Date;
 
         _userRepository.Update(userInfo);
         _userRepository.Save();
@@ -109,7 +110,7 @@ public class UserService : IUserService
     }
 
     /// <summary>
-    /// Tìm user theo GoogleId hoặc Email. Nếu chưa có thì tạo mới với role Member.
+    /// Tim user theo GoogleId hoac Email. Neu chua co thi tao moi voi role Collaborator.
     /// </summary>
     public async Task<User> FindOrCreateGoogleUserAsync(string googleId, string email, string fullName, string? avatarUrl)
     {
@@ -130,8 +131,8 @@ public class UserService : IUserService
         }
 
         // Tạo user mới từ Google
-        var memberRole = _roleRepository.GetByName("Member")
-            ?? throw new Exception("Vai trò 'Member' chưa được khởi tạo");
+        var collaboratorRole = _roleRepository.GetByName("Collaborator")
+            ?? throw new Exception("Vai tro 'Collaborator' chua duoc khoi tao");
 
         var newUser = new User
         {
@@ -141,8 +142,8 @@ public class UserService : IUserService
             UserName = email.Split('@')[0] + "_" + Guid.NewGuid().ToString("N")[..4],
             AvatarUrl = avatarUrl,
             Password = null, // Không có password vì dùng Google
-            RoleId = memberRole.RoleId,
-            Role = memberRole
+            RoleId = collaboratorRole.RoleId,
+            Role = collaboratorRole
         };
 
         _userRepository.Add(newUser);
@@ -161,9 +162,10 @@ public class UserService : IUserService
             IdentityCard = u.IdentityCard,
             Sex = u.Sex,
             PhoneNumber = u.PhoneNumber,
-            DateOfBirth = u.DateOfBirth ?? DateTime.MinValue,
+            DateOfBirth = u.DateOfBirth,
             Address = u.Address,
-            FullName = u.FullName
+            FullName = u.FullName,
+            RoleName = u.Role?.RoleName
         }).ToList();
 
         return new PagingResponse<UserInfo>(items, pagedData.TotalRecords, request.PageIndex, request.PageSize);

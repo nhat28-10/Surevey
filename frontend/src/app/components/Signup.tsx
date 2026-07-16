@@ -3,208 +3,76 @@ import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { signup } from "../services/authService";
-import { UserRole } from "../types/auth";
-import { ClipboardList, Users, Search } from "lucide-react";
+import type { UserRole } from "../types/auth";
+import { ClipboardList, Search, Users } from "lucide-react";
 
 export function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    userName: "",
+    name: "",
     email: "",
     password: "",
-    name: "",
-    role: "helper" as UserRole,
+    confirmPassword: "",
+    role: "Collaborator" as Exclude<UserRole, "Admin">,
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
+    if (formData.password !== formData.confirmPassword) {
+      setError("Mật khẩu xác nhận không khớp");
+      return;
+    }
     setIsLoading(true);
-
-    const result = signup(formData);
-
+    const result = await signup(formData);
     setIsLoading(false);
 
-    if (result.success) {
-      // Navigate based on role
-      if (result.user?.role === "owner") {
-        navigate("/owner/dashboard");
-      } else {
-        navigate("/helper/marketplace");
-      }
-      // Force re-render
-      window.dispatchEvent(new Event("storage"));
-    } else {
+    if (!result.success) {
       setError(result.error || "Đã xảy ra lỗi");
+      return;
     }
+
+    navigate(result.user?.role === "Customer" ? "/customer/dashboard" : "/collaborator/marketplace");
   };
 
-  return (
-    <div className="min-h-[80vh] flex items-center justify-center py-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <ClipboardList className="w-12 h-12 text-blue-600" />
+  return <div className="min-h-[80vh] flex items-center justify-center py-8">
+    <Card className="w-full max-w-md">
+      <CardHeader className="space-y-1">
+        <div className="flex justify-center mb-4"><ClipboardList className="w-12 h-12 text-green-600" /></div>
+        <CardTitle className="text-2xl text-center">Đăng ký tài khoản</CardTitle>
+        <CardDescription className="text-center">Biểu mẫu này gửi đúng model User mà backend hiện tại yêu cầu.</CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4">
+          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          <div className="space-y-2"><Label htmlFor="userName">Tên đăng nhập *</Label><Input id="userName" value={formData.userName} onChange={e => setFormData(prev => ({ ...prev, userName: e.target.value }))} required maxLength={50} /></div>
+          <div className="space-y-2"><Label htmlFor="name">Họ và tên *</Label><Input id="name" value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} required /></div>
+          <div className="space-y-2"><Label htmlFor="email">Email *</Label><Input id="email" type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} required maxLength={100} /></div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label htmlFor="password">Mật khẩu *</Label><Input id="password" type="password" value={formData.password} onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))} required minLength={6} /></div>
+            <div className="space-y-2"><Label htmlFor="confirmPassword">Xác nhận *</Label><Input id="confirmPassword" type="password" value={formData.confirmPassword} onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))} required minLength={6} /></div>
           </div>
-          <CardTitle className="text-2xl text-center">
-            Đăng ký tài khoản
-          </CardTitle>
-          <CardDescription className="text-center">
-            Tạo tài khoản mới để bắt đầu sử dụng SureVey
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="name">Họ và tên</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Nguyễn Văn A"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    name: e.target.value,
-                  })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="email@example.com"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    email: e.target.value,
-                  })
-                }
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Mật khẩu</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    password: e.target.value,
-                  })
-                }
-                required
-                minLength={6}
-              />
-              <p className="text-xs text-gray-500">Tối thiểu 6 ký tự</p>
-            </div>
-
-            <div className="flex flex-col gap-4 mt-5">
-              <Button variant="outline" className="w-full">
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google"
-                  width="18"
-                  height="18"
-                />
-                Đăng ký bằng Google
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              <Label>Vai trò</Label>
-              <RadioGroup
-                value={formData.role}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    role: value as UserRole,
-                  })
-                }
-              >
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="helper" id="helper" />
-                  <Label htmlFor="helper" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Search className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium">Người làm khảo sát</div>
-                        <div className="text-sm text-gray-500">
-                          Làm khảo sát và kiếm tiền
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="owner" id="owner" />
-                  <Label htmlFor="owner" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-5 h-5 text-green-600" />
-                      <div>
-                        <div className="font-medium">Chủ khảo sát</div>
-                        <div className="text-sm text-gray-500">
-                          Đăng khảo sát và thu thập dữ liệu
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </CardContent>
-
-          <CardFooter className="flex flex-col gap-4 mt-5">
-            <Button
-              type="submit"
-              className="w-full bg-green-600 hover:bg-green-700"
-              disabled={isLoading}
-            >
-              {isLoading ? "Đang tạo tài khoản..." : "Đăng ký"}
-            </Button>
-
-            <div className="text-sm text-center text-gray-600">
-              Đã có tài khoản?{" "}
-              <Button
-                type="button"
-                variant="link"
-                className="p-0 h-auto"
-                onClick={() => navigate("/login")}
-              >
-                Đăng nhập ngay
-              </Button>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
+          <div className="space-y-3">
+            <Label>Vai trò</Label>
+            <RadioGroup value={formData.role} onValueChange={value => setFormData(prev => ({ ...prev, role: value as Exclude<UserRole, "Admin"> }))}>
+              <div className="flex items-center gap-2 border rounded-lg p-4"><RadioGroupItem value="Collaborator" id="collaborator"/><Label htmlFor="collaborator" className="flex-1 cursor-pointer"><span className="flex items-center gap-2"><Search className="w-5 h-5 text-blue-600"/>Người làm khảo sát — backend RoleId 1</span></Label></div>
+              <div className="flex items-center gap-2 border rounded-lg p-4"><RadioGroupItem value="Customer" id="customer"/><Label htmlFor="customer" className="flex-1 cursor-pointer"><span className="flex items-center gap-2"><Users className="w-5 h-5 text-green-600"/>Chủ khảo sát — backend RoleId 2</span></Label></div>
+            </RadioGroup>
+          </div>
+          <Button type="button" variant="outline" className="w-full" disabled title="Backend Google callback hiện trả JSON, chưa có callback về frontend">Google OAuth chưa nối callback về SPA</Button>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4 mt-5">
+          <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>{isLoading ? "Đang đăng ký..." : "Đăng ký"}</Button>
+          <div className="text-sm text-center text-gray-600">Đã có tài khoản? <Button type="button" variant="link" className="p-0 h-auto" onClick={() => navigate("/login")}>Đăng nhập</Button></div>
+        </CardFooter>
+      </form>
+    </Card>
+  </div>;
 }

@@ -201,15 +201,15 @@ public class UserController : ControllerBase
     }
 
     // ─────────────────────────────────────────────
-    // DANH SÁCH MEMBER – chỉ Admin & Employee
+    // DANH SACH COLLABORATOR - chi Admin
     // ─────────────────────────────────────────────
-    [Authorize(Roles = "Admin,Employee")]
+    [Authorize(Roles = "Admin")]
     [HttpGet("members")]
     public async Task<IActionResult> GetMembers()
     {
         var members = await _dbContext.Users
             .Include(u => u.Role)
-            .Where(u => u.Role != null && u.Role.RoleName == "Member")
+            .Where(u => u.Role != null && u.Role.RoleName == "Collaborator")
             .OrderBy(u => u.UserId)
             .Select(u => new
             {
@@ -222,7 +222,8 @@ public class UserController : ControllerBase
                 u.IdentityCard,
                 u.DateOfBirth,
                 u.Address,
-                u.AvatarUrl
+                u.AvatarUrl,
+                RoleName = u.Role!.RoleName
             }).ToListAsync();
 
         return Ok(members);
