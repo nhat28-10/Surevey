@@ -280,6 +280,9 @@ public class WalletFlowService : IWalletFlowService
         var now = DateTime.UtcNow;
         var paymentCode = $"CMP{campaignId}-{customerId}-{now:yyyyMMddHHmmss}";
         var transferContent = BuildTransferContent(paymentCode);
+        var bankName = _configuration["ManualPayment:BankName"] ?? "CONFIGURE_BANK_NAME";
+        var bankAccountName = _configuration["ManualPayment:BankAccountName"] ?? "CONFIGURE_BANK_ACCOUNT_NAME";
+        var bankAccountNumber = _configuration["ManualPayment:BankAccountNumber"] ?? "CONFIGURE_BANK_ACCOUNT_NUMBER";
         var payment = new CampaignPayment
         {
             CampaignId = campaignId,
@@ -293,10 +296,10 @@ public class WalletFlowService : IWalletFlowService
             PlatformFeeRate = quote.PlatformFeeRate,
             PlatformFeeAmount = quote.PlatformFeeAmount,
             TotalAmount = quote.TotalAmount,
-            BankName = _configuration["ManualPayment:BankName"] ?? "CONFIGURE_BANK_NAME",
-            BankAccountName = _configuration["ManualPayment:BankAccountName"] ?? "CONFIGURE_BANK_ACCOUNT_NAME",
-            BankAccountNumber = _configuration["ManualPayment:BankAccountNumber"] ?? "CONFIGURE_BANK_ACCOUNT_NUMBER",
-            QrImageUrl = NullIfWhiteSpace(_configuration["ManualPayment:QrImageUrl"]),
+            BankName = bankName,
+            BankAccountName = bankAccountName,
+            BankAccountNumber = bankAccountNumber,
+            QrImageUrl = BuildQrImageUrl(bankName, bankAccountName, bankAccountNumber, quote.TotalAmount, transferContent),
             TransferContent = transferContent,
             CustomerNote = NullIfWhiteSpace(request.CustomerNote),
             Status = CampaignPaymentStatus.PENDING,
@@ -836,6 +839,27 @@ public class WalletFlowService : IWalletFlowService
     private static string BuildTransferContent(string paymentCode)
     {
         return $"SURESURVEY {paymentCode}";
+    }
+
+    private string BuildQrImageUrl(string bankName, string bankAccountName, string bankAccountNumber, decimal amount, string transferContent)
+    {
+        var configuredQr = NullIfWhiteSpace(_configuration["ManualPayment:QrImageUrl"]);
+        if (configuredQr != null)
+        {
+            return configuredQr;
+        }
+
+        var qrText = string.Join("\n", new[]
+        {
+            "SURESURVEY PAYMENT",
+            $"Bank: {bankName}",
+            $"AccountName: {bankAccountName}",
+            $"AccountNumber: {bankAccountNumber}",
+            $"Amount: {amount:0.##} VND",
+            $"Content: {transferContent}"
+        });
+
+        return $"https://quickchart.io/qr?size=280&margin=1&text={Uri.EscapeDataString(qrText)}";
     }
 
     private static string? NullIfWhiteSpace(string? value)

@@ -30,6 +30,7 @@ export function Signup() {
       setError("Mật khẩu xác nhận không khớp");
       return;
     }
+
     setIsLoading(true);
     const result = await signup(formData);
     setIsLoading(false);
@@ -47,7 +48,7 @@ export function Signup() {
       <CardHeader className="space-y-1">
         <div className="flex justify-center mb-4"><ClipboardList className="w-12 h-12 text-green-600" /></div>
         <CardTitle className="text-2xl text-center">Đăng ký tài khoản</CardTitle>
-        <CardDescription className="text-center">Biểu mẫu này gửi đúng model User mà backend hiện tại yêu cầu.</CardDescription>
+        <CardDescription className="text-center">Chọn đúng vai trò để hệ thống đưa bạn vào luồng phù hợp.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -60,10 +61,22 @@ export function Signup() {
             <div className="space-y-2"><Label htmlFor="confirmPassword">Xác nhận *</Label><Input id="confirmPassword" type="password" value={formData.confirmPassword} onChange={e => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))} required minLength={6} /></div>
           </div>
           <div className="space-y-3">
-            <Label>Vai trò</Label>
+            <Label>Vai trò đăng ký</Label>
             <RadioGroup value={formData.role} onValueChange={value => setFormData(prev => ({ ...prev, role: value as Exclude<UserRole, "Admin"> }))}>
-              <div className="flex items-center gap-2 border rounded-lg p-4"><RadioGroupItem value="Collaborator" id="collaborator"/><Label htmlFor="collaborator" className="flex-1 cursor-pointer"><span className="flex items-center gap-2"><Search className="w-5 h-5 text-blue-600"/>Người làm khảo sát — backend RoleId 1</span></Label></div>
-              <div className="flex items-center gap-2 border rounded-lg p-4"><RadioGroupItem value="Customer" id="customer"/><Label htmlFor="customer" className="flex-1 cursor-pointer"><span className="flex items-center gap-2"><Users className="w-5 h-5 text-green-600"/>Chủ khảo sát — backend RoleId 2</span></Label></div>
+              <div className="flex items-start gap-3 border rounded-lg p-4">
+                <RadioGroupItem value="Collaborator" id="collaborator" className="mt-1" />
+                <Label htmlFor="collaborator" className="flex-1 cursor-pointer">
+                  <span className="flex items-center gap-2 font-medium"><Search className="w-5 h-5 text-blue-600" />Guest / Người làm khảo sát</span>
+                  <span className="block text-sm text-gray-600 mt-1">Chọn mục này nếu bạn muốn đăng ký để nhận campaign, làm khảo sát và nhận thưởng.</span>
+                </Label>
+              </div>
+              <div className="flex items-start gap-3 border rounded-lg p-4">
+                <RadioGroupItem value="Customer" id="customer" className="mt-1" />
+                <Label htmlFor="customer" className="flex-1 cursor-pointer">
+                  <span className="flex items-center gap-2 font-medium"><Users className="w-5 h-5 text-green-600" />Customer / Người tạo campaign</span>
+                  <span className="block text-sm text-gray-600 mt-1">Chọn mục này nếu bạn muốn đăng campaign khảo sát và thanh toán ngân sách thưởng.</span>
+                </Label>
+              </div>
             </RadioGroup>
           </div>
           <Button type="button" variant="outline" className="w-full" disabled title="Backend Google callback hiện trả JSON, chưa có callback về frontend">Google OAuth chưa nối callback về SPA</Button>
