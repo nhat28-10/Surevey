@@ -5,8 +5,8 @@ export interface CreateCampaignInput {
   title: string;
   description: string;
   instruction: string;
-  campaignType: "GOOGLE_FORM";
-  googleFormUrl: string;
+  campaignType: "GOOGLE_FORM" | "INTERNAL_FORM";
+  googleFormUrl?: string;
   rewardPerResponse: number;
   targetResponses: number;
   answerCount: number;

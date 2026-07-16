@@ -180,15 +180,8 @@ export function OwnerDashboard() {
           <DialogTitle>Thanh toán campaign bằng mã QR</DialogTitle>
           <DialogDescription>Quét QR của hệ thống, chuyển đúng số tiền và nội dung, sau đó gửi URL ảnh biên lai để xác minh.</DialogDescription>
         </DialogHeader>
-        {paymentInfo && <div className="grid md:grid-cols-[220px_1fr] gap-5">
-          <div className="rounded-lg border bg-white p-3 flex items-center justify-center min-h-[220px]">
-            {paymentInfo.qrImageUrl ? <img src={paymentInfo.qrImageUrl} alt="QR thanh toán SureSurvey" className="max-h-52 max-w-full object-contain" /> :
-              <div className="text-center text-sm text-gray-600 space-y-2">
-                <QrCode className="w-12 h-12 mx-auto text-gray-400" />
-                <p>Backend chưa cấu hình ảnh QR.</p>
-                <p>Vẫn có thể chuyển khoản bằng thông tin bên cạnh.</p>
-              </div>}
-          </div>
+        {paymentInfo && <div className="grid md:grid-cols-[240px_1fr] gap-5">
+          <PaymentQrPreview qrImageUrl={paymentInfo.qrImageUrl} />
           <div className="space-y-3 text-sm">
             <PaymentLine label="Mã thanh toán" value={paymentInfo.paymentCode} onCopy={() => void copy(paymentInfo.paymentCode, "mã thanh toán")} />
             <PaymentLine label="Số tiền" value={money(paymentInfo.totalAmount)} onCopy={() => void copy(String(paymentInfo.totalAmount), "số tiền")} />
@@ -222,5 +215,28 @@ function PaymentLine({ label, value, onCopy }: { label: string; value: string; o
       <strong className="break-all">{value || "-"}</strong>
       {onCopy && <Button type="button" size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0" onClick={onCopy} title={`Sao chép ${label}`}><Copy className="w-4 h-4" /></Button>}
     </div>
+  </div>;
+}
+
+function PaymentQrPreview({ qrImageUrl }: { qrImageUrl?: string | null }) {
+  if (!qrImageUrl) {
+    return <div className="h-60 w-60 rounded-lg border bg-white p-4 flex items-center justify-center">
+      <div className="text-center text-sm text-gray-600 space-y-2">
+        <QrCode className="w-12 h-12 mx-auto text-gray-400" />
+        <p>Backend chưa cấu hình ảnh QR.</p>
+        <p>Vẫn có thể chuyển khoản bằng thông tin bên cạnh.</p>
+      </div>
+    </div>;
+  }
+
+  return <div className="space-y-2">
+    <div className="h-60 w-60 overflow-hidden rounded-lg border bg-white shadow-sm">
+      <img
+        src={qrImageUrl}
+        alt="QR thanh toán SureSurvey"
+        className="h-full w-full scale-[1.24] object-cover [object-position:center_41%]"
+      />
+    </div>
+    <a href={qrImageUrl} target="_blank" rel="noreferrer" className="block text-center text-xs text-blue-600 underline">Mở ảnh QR gốc</a>
   </div>;
 }
