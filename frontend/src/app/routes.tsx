@@ -13,6 +13,7 @@ import { HelperFinishedSurveys } from "./components/HelperFinishedSurveys";
 import { AdminProcessRequests } from "./components/AdminProcessRequests";
 import { SurveyDetail } from "./components/SurveyDetail";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Profile } from "./components/Profile";
 
 export const router = createBrowserRouter([{
   path: "/",
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([{
     { path: "collaborator/participation/:surveyId", element: <ProtectedRoute roles={["Collaborator"]}><SurveyDoing /></ProtectedRoute> },
     { path: "collaborator/activities", element: <ProtectedRoute roles={["Collaborator"]}><HelperFinishedSurveys /></ProtectedRoute> },
     { path: "admin", element: <ProtectedRoute roles={["Admin"]}><AdminProcessRequests /></ProtectedRoute> },
+    { path: "profile", element: <ProtectedRoute><Profile /></ProtectedRoute> },
     { path: "support/faq", Component: FAQ },
 
     { path: "owner/dashboard", element: <Navigate to="/customer/dashboard" replace /> },

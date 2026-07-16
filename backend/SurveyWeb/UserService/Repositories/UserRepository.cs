@@ -99,7 +99,7 @@ public class UserRepository : IUserRepository
 
     public async Task<PagingResponse<User>> GetPagedUserAsync(int pageIndex, int pageSize)
     {
-        var query = _context.Users.AsQueryable();
+        var query = _context.Users.Include(u => u.Role).AsQueryable();
         return await GetPagedListAsync(query, pageIndex, pageSize);
     }
 

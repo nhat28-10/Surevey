@@ -179,6 +179,7 @@ export interface UserProfile {
   dateOfBirth?: string | null;
   address?: string | null;
   fullName?: string | null;
+  roleName?: BackendRole | string | null;
 }
 
 export interface PagedResponse<T> {

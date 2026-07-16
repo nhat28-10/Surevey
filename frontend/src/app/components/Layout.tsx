@@ -26,7 +26,9 @@ export function Layout() {
   };
 
   const navClass = (path: string) => `flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-    location.pathname.startsWith(path) ? "bg-green-600 text-white" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+    (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path))
+      ? "bg-green-600 text-white"
+      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
   }`;
 
   return (
@@ -52,14 +54,16 @@ export function Layout() {
               <Link to="/admin" className={navClass("/admin")}><ShieldCheck className="w-4 h-4" />Quản trị</Link>}
             {currentUser && currentUser.role !== "Admin" &&
               <Link to="/support/faq" className={navClass("/support")}><HelpCircle className="w-4 h-4" />Hỗ trợ</Link>}
+            {currentUser &&
+              <Link to="/profile" className={navClass("/profile")}><UserCircle className="w-4 h-4" />Ho so</Link>}
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
             {currentUser ? <>
-              <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600">
+              <Link to="/profile" className="hidden lg:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
                 <UserCircle className="w-5 h-5" /><span>{currentUser.name}</span>
                 <Badge variant="outline">{currentUser.role}</Badge>
-              </div>
+              </Link>
               <Button size="sm" variant="destructive" onClick={handleLogout}><LogOut className="w-4 h-4 mr-1" />Đăng xuất</Button>
             </> : <>
               <Button size="sm" variant="outline" onClick={() => navigate("/login")}>Đăng nhập</Button>
@@ -72,6 +76,7 @@ export function Layout() {
           {currentUser.role === "Customer" && <><Link to="/customer/dashboard" className={navClass("/customer/dashboard")}>Campaign</Link><Link to="/customer/post" className={navClass("/customer/post")}>Tạo mới</Link></>}
           {currentUser.role === "Collaborator" && <><Link to="/collaborator/marketplace" className={navClass("/collaborator/marketplace")}>Marketplace</Link><Link to="/collaborator/activities" className={navClass("/collaborator/activities")}>Công việc & ví</Link></>}
           {currentUser.role === "Admin" && <Link to="/admin" className={navClass("/admin")}>Quản trị</Link>}
+          <Link to="/profile" className={navClass("/profile")}>Ho so</Link>
         </nav>}
       </header>
 
