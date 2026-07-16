@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using UserService;
+using UserService.Models;
 using UserService.Repositories;
 using UserService.Services;
 using Microsoft.AspNetCore.Authentication;
+
+Environment.SetEnvironmentVariable("DOTNET_hostBuilder__reloadConfigOnChange", "false");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,6 +120,7 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
     dbContext.SeedRoles();
+    SeedAdminAccount(dbContext, app.Configuration);
 }
 
 app.UseCors("AllowMVC");
@@ -142,3 +146,90 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 app.Run();
+
+static void SeedAdminAccount(MyDbContext dbContext, IConfiguration configuration)
+{
+    var email = FirstConfiguredValue(configuration, "SeedAdmin:Email", "SEED_ADMIN_EMAIL");
+    var password = FirstConfiguredValue(configuration, "SeedAdmin:Password", "SEED_ADMIN_PASSWORD");
+
+    if (string.IsNullOrWhiteSpace(email) && string.IsNullOrWhiteSpace(password))
+    {
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+    {
+        throw new InvalidOperationException("SeedAdmin requires both Email and Password.");
+    }
+
+    var adminRole = dbContext.Roles.FirstOrDefault(role => role.RoleName == "Admin")
+        ?? throw new InvalidOperationException("Admin role has not been seeded.");
+
+    var normalizedEmail = email.Trim().ToLowerInvariant();
+    var user = dbContext.Users.FirstOrDefault(existing => existing.Email == normalizedEmail);
+    var resetPassword = configuration.GetValue<bool>("SeedAdmin:ResetPassword")
+        || configuration.GetValue<bool>("SEED_ADMIN_RESET_PASSWORD");
+
+    if (user == null)
+    {
+        var requestedUserName = FirstConfiguredValue(configuration, "SeedAdmin:UserName", "SEED_ADMIN_USERNAME");
+        var userName = BuildUniqueAdminUserName(dbContext, requestedUserName, normalizedEmail);
+        var fullName = FirstConfiguredValue(configuration, "SeedAdmin:FullName", "SEED_ADMIN_FULL_NAME")
+            ?? "System Admin";
+
+        dbContext.Users.Add(new User
+        {
+            UserName = userName,
+            Email = normalizedEmail,
+            Password = BCrypt.Net.BCrypt.HashPassword(password),
+            FullName = fullName.Trim(),
+            RoleId = adminRole.RoleId,
+            Role = adminRole
+        });
+    }
+    else
+    {
+        user.RoleId = adminRole.RoleId;
+        if (string.IsNullOrWhiteSpace(user.Password) || resetPassword)
+        {
+            user.Password = BCrypt.Net.BCrypt.HashPassword(password);
+        }
+    }
+
+    dbContext.SaveChanges();
+}
+
+static string? FirstConfiguredValue(IConfiguration configuration, params string[] keys)
+{
+    foreach (var key in keys)
+    {
+        var value = configuration[key];
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+    }
+
+    return null;
+}
+
+static string BuildUniqueAdminUserName(MyDbContext dbContext, string? requestedUserName, string email)
+{
+    var baseUserName = string.IsNullOrWhiteSpace(requestedUserName)
+        ? email.Split('@')[0]
+        : requestedUserName.Trim();
+
+    baseUserName = baseUserName.Length > 40 ? baseUserName[..40] : baseUserName;
+    var userName = baseUserName;
+    var suffix = 1;
+
+    while (dbContext.Users.Any(user => user.UserName == userName))
+    {
+        var suffixText = $"_{suffix++}";
+        var maxBaseLength = Math.Max(1, 50 - suffixText.Length);
+        var trimmedBase = baseUserName.Length > maxBaseLength ? baseUserName[..maxBaseLength] : baseUserName;
+        userName = $"{trimmedBase}{suffixText}";
+    }
+
+    return userName;
+}

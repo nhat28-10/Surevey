@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using WalletService.Data;
 using WalletService.Services;
 
+Environment.SetEnvironmentVariable("DOTNET_hostBuilder__reloadConfigOnChange", "false");
+
 var builder = WebApplication.CreateBuilder(args);
 
 var port = builder.Configuration["PORT"];
