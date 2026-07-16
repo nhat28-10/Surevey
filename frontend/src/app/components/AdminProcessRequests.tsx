@@ -106,6 +106,9 @@ export function AdminProcessRequests() {
               if (reason?.trim()) void run(`p-${payment.id}`, () => adminApi.rejectPayment(payment.id, reason.trim()), "Đã từ chối thanh toán");
             }}>Từ chối</Button>
           </div>}
+          {payment.status === "PAID" && <div className="flex gap-2">
+            <Button variant="outline" disabled={busy === `sync-${payment.id}`} onClick={() => void run(`sync-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã đồng bộ campaign sang marketplace.")}>Đồng bộ campaign</Button>
+          </div>}
         </CardContent>
       </Card>)}</div>}
   </div>;
