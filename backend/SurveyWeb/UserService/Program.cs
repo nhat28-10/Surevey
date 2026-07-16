@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using UserService;
 using UserService.Models;
 using UserService.Repositories;
@@ -49,7 +50,7 @@ builder.Services.AddControllers();
 
 // ── Database ────────────────────────────────────────────────────────
 builder.Services.AddDbContext<MyDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(ResolvePostgresConnectionString(builder.Configuration, "DefaultConnection")));
 
 builder.Services.AddMemoryCache();
 
@@ -233,4 +234,58 @@ static string BuildUniqueAdminUserName(MyDbContext dbContext, string? requestedU
     }
 
     return userName;
+}
+
+static string ResolvePostgresConnectionString(IConfiguration configuration, params string[] connectionNames)
+{
+    foreach (var name in connectionNames)
+    {
+        var value = configuration.GetConnectionString(name);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return NormalizePostgresConnectionString(value);
+        }
+    }
+
+    var databaseUrl = configuration["DATABASE_URL"] ?? configuration["POSTGRES_URL"];
+    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    {
+        return NormalizePostgresConnectionString(databaseUrl);
+    }
+
+    throw new InvalidOperationException(
+        $"Missing database connection string. Set ConnectionStrings__{connectionNames[0]} or DATABASE_URL.");
+}
+
+static string NormalizePostgresConnectionString(string connectionString)
+{
+    var value = connectionString.Trim().Trim('"', '\'');
+    if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        && !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return value;
+    }
+
+    var uri = new Uri(value);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Database = Uri.UnescapeDataString(uri.AbsolutePath.TrimStart('/')),
+        Username = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(0) ?? ""),
+        Password = Uri.UnescapeDataString(userInfo.ElementAtOrDefault(1) ?? "")
+    };
+
+    foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+    {
+        var parts = pair.Split('=', 2);
+        if (parts.Length == 2 && parts[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase)
+            && Enum.TryParse<SslMode>(Uri.UnescapeDataString(parts[1]), true, out var sslMode))
+        {
+            builder.SslMode = sslMode;
+        }
+    }
+
+    return builder.ConnectionString;
 }
