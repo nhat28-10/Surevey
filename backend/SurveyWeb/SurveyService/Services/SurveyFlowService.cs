@@ -35,7 +35,9 @@ public class SurveyFlowService : ISurveyFlowService
             Description = request.Description.Trim(),
             Instruction = request.Instruction.Trim(),
             CampaignType = request.CampaignType,
-            GoogleFormUrl = string.IsNullOrWhiteSpace(request.GoogleFormUrl) ? null : request.GoogleFormUrl.Trim(),
+            GoogleFormUrl = request.CampaignType == CampaignType.GOOGLE_FORM && !string.IsNullOrWhiteSpace(request.GoogleFormUrl)
+                ? request.GoogleFormUrl.Trim()
+                : null,
             ConfirmationCode = GenerateConfirmationCode(),
             RewardPerResponse = calculatedRewardPerResponse,
             TargetResponses = request.TargetResponses,
@@ -484,15 +486,20 @@ public class SurveyFlowService : ISurveyFlowService
         var confirmationCode = request.ConfirmationCode?.Trim() ?? string.Empty;
         if (campaign.CampaignType == CampaignType.GOOGLE_FORM)
         {
-            if (string.IsNullOrWhiteSpace(confirmationCode))
+            if (string.IsNullOrWhiteSpace(request.ContactEmail))
             {
-                throw BadRequest("Confirmation code is required for Google Form campaigns.");
+                throw BadRequest("ContactEmail is required so the customer can verify the Google Form response.");
             }
 
-            if (!string.Equals(confirmationCode, campaign.ConfirmationCode, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(confirmationCode)
+                && !string.Equals(confirmationCode, campaign.ConfirmationCode, StringComparison.OrdinalIgnoreCase))
             {
                 throw BadRequest("Confirmation code is invalid.");
             }
+        }
+        else if (campaign.CampaignType == CampaignType.INTERNAL_FORM && string.IsNullOrWhiteSpace(request.Note))
+        {
+            throw BadRequest("Internal form answers are required.");
         }
 
         var hasBlockingSubmission = await _dbContext.Submissions.AnyAsync(s =>
@@ -532,14 +539,14 @@ public class SurveyFlowService : ISurveyFlowService
 
     private static void ValidateCampaignRequest(CreateCampaignRequest request)
     {
-        if (request.CampaignType == CampaignType.INTERNAL_FORM)
-        {
-            throw BadRequest("Internal Form Builder is not implemented in this phase.");
-        }
-
         if (request.CampaignType == CampaignType.GOOGLE_FORM && string.IsNullOrWhiteSpace(request.GoogleFormUrl))
         {
             throw BadRequest("GoogleFormUrl is required for Google Form campaigns.");
+        }
+
+        if (request.CampaignType == CampaignType.INTERNAL_FORM && string.IsNullOrWhiteSpace(request.Instruction))
+        {
+            throw BadRequest("Instruction must contain at least one internal form question.");
         }
 
         if (request.Deadline.ToUniversalTime() <= DateTime.UtcNow)
