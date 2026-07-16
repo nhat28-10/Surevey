@@ -241,29 +241,44 @@ static string ResolvePostgresConnectionString(IConfiguration configuration, para
     foreach (var name in connectionNames)
     {
         var value = configuration.GetConnectionString(name);
-        if (!string.IsNullOrWhiteSpace(value))
+        if (!string.IsNullOrWhiteSpace(value) && !IsPlaceholderConnectionString(value))
         {
             return NormalizePostgresConnectionString(value);
         }
     }
 
     var databaseUrl = configuration["DATABASE_URL"] ?? configuration["POSTGRES_URL"];
-    if (!string.IsNullOrWhiteSpace(databaseUrl))
+    if (!string.IsNullOrWhiteSpace(databaseUrl) && !IsPlaceholderConnectionString(databaseUrl))
     {
         return NormalizePostgresConnectionString(databaseUrl);
     }
 
     throw new InvalidOperationException(
-        $"Missing database connection string. Set ConnectionStrings__{connectionNames[0]} or DATABASE_URL.");
+        $"Missing valid database connection string. Set ConnectionStrings__{connectionNames[0]} or DATABASE_URL with a real Neon/Postgres value, not a placeholder.");
 }
 
 static string NormalizePostgresConnectionString(string connectionString)
 {
-    var value = connectionString.Trim().Trim('"', '\'');
+    var value = connectionString.Trim().Trim('"', '\'').Trim().Trim('<', '>');
+    var postgresUrlIndex = IndexOfPostgresUrl(value);
+    if (postgresUrlIndex > 0)
+    {
+        value = value[postgresUrlIndex..].Split(' ', '\r', '\n', '\t')[0].Trim().Trim('"', '\'').Trim('<', '>');
+    }
+
     if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
         && !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
     {
-        return value;
+        try
+        {
+            return new NpgsqlConnectionStringBuilder(value).ConnectionString;
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidOperationException(
+                "Invalid Postgres connection string. Use Neon/.NET format like 'Host=...;Database=...;Username=...;Password=...' or URL format 'postgresql://user:password@host/database?sslmode=require'.",
+                ex);
+        }
     }
 
     var uri = new Uri(value);
@@ -288,4 +303,24 @@ static string NormalizePostgresConnectionString(string connectionString)
     }
 
     return builder.ConnectionString;
+}
+
+static bool IsPlaceholderConnectionString(string value)
+{
+    var trimmed = value.Trim().Trim('"', '\'');
+    return trimmed.Length == 0
+        || trimmed.Equals("<NEON_CONNECTION_STRING>", StringComparison.OrdinalIgnoreCase)
+        || trimmed.Equals("<DATABASE_URL>", StringComparison.OrdinalIgnoreCase)
+        || trimmed.Equals("NEON_CONNECTION_STRING", StringComparison.OrdinalIgnoreCase)
+        || trimmed.Equals("DATABASE_URL", StringComparison.OrdinalIgnoreCase);
+}
+
+static int IndexOfPostgresUrl(string value)
+{
+    var postgresIndex = value.IndexOf("postgres://", StringComparison.OrdinalIgnoreCase);
+    var postgresqlIndex = value.IndexOf("postgresql://", StringComparison.OrdinalIgnoreCase);
+
+    if (postgresIndex < 0) return postgresqlIndex;
+    if (postgresqlIndex < 0) return postgresIndex;
+    return Math.Min(postgresIndex, postgresqlIndex);
 }
