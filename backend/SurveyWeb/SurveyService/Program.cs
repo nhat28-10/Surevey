@@ -114,6 +114,12 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<SurveyDbContext>();
+    dbContext.Database.Migrate();
+}
+
 app.UseCors("AllowFrontendLocal");
 
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("ENABLE_SWAGGER"))

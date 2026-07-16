@@ -119,6 +119,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+    dbContext.Database.Migrate();
     dbContext.SeedRoles();
     SeedAdminAccount(dbContext, app.Configuration);
 }
