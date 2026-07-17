@@ -12,7 +12,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { ExternalLink, RefreshCw, WalletCards } from "lucide-react";
+import { Activity, ExternalLink, RefreshCw, WalletCards } from "lucide-react";
 
 function message(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể tải dữ liệu";
@@ -27,6 +27,8 @@ export function HelperFinishedSurveys() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ amount: "", bankName: "", bankAccountName: "", bankAccountNumber: "" });
+  const [workFilter, setWorkFilter] = useState("ALL");
+  const [workSort, setWorkSort] = useState("UPDATED_DESC");
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -42,6 +44,24 @@ export function HelperFinishedSurveys() {
   useEffect(() => { void load(); }, [load]);
 
   const totalEarned = useMemo(() => transactions.filter(t => t.type === "REWARD_PAID" || t.type === "REWARD").reduce((sum, t) => sum + Math.max(0, t.amount), 0), [transactions]);
+  const workStats = useMemo(() => ({
+    total: participations.length,
+    active: participations.filter(p => ["ACCEPTED", "IN_PROGRESS"].includes(p.status)).length,
+    submitted: participations.filter(p => p.status === "SUBMITTED").length,
+    approved: participations.filter(p => p.status === "APPROVED").length,
+  }), [participations]);
+  const filteredParticipations = useMemo(() => {
+    const data = workFilter === "ALL" ? [...participations] : participations.filter(p => p.status === workFilter);
+    return data.sort((a, b) => {
+      if (workSort === "ACCEPTED_ASC") return new Date(a.acceptedAt).getTime() - new Date(b.acceptedAt).getTime();
+      if (workSort === "STATUS") return a.status.localeCompare(b.status);
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [participations, workFilter, workSort]);
+  const recentActivities = useMemo(() => participations
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 5), [participations]);
 
   const withdraw = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -68,10 +88,36 @@ export function HelperFinishedSurveys() {
       <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Tổng đã kiếm</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{totalEarned.toLocaleString('vi-VN')} đ</CardContent></Card>
     </div>
 
+    <div className="grid sm:grid-cols-4 gap-4">
+      <WorkStat label="Campaign đã nhận" value={workStats.total} />
+      <WorkStat label="Đang làm" value={workStats.active} />
+      <WorkStat label="Chờ duyệt" value={workStats.submitted} />
+      <WorkStat label="Đã duyệt" value={workStats.approved} />
+    </div>
+
+    <RecentWorkActivity participations={recentActivities} />
+
     <Tabs defaultValue="work">
       <TabsList><TabsTrigger value="work">Campaign đã nhận</TabsTrigger><TabsTrigger value="transactions">Giao dịch</TabsTrigger><TabsTrigger value="withdraw">Rút tiền</TabsTrigger></TabsList>
       <TabsContent value="work" className="space-y-3 mt-4">
-        {participations.length === 0 ? <Card><CardContent className="py-12 text-center"><p className="text-gray-600 mb-3">Bạn chưa nhận campaign nào.</p><Button asChild><Link to="/collaborator/marketplace">Mở Marketplace</Link></Button></CardContent></Card> : participations.map(p => <Card key={p.id}><CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <select className="h-10 rounded-md border bg-white px-3 text-sm" value={workFilter} onChange={event => setWorkFilter(event.target.value)}>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="ACCEPTED">Đã nhận</option>
+            <option value="IN_PROGRESS">Đang làm</option>
+            <option value="SUBMITTED">Chờ duyệt</option>
+            <option value="APPROVED">Đã duyệt</option>
+            <option value="REJECTED">Bị từ chối</option>
+          </select>
+          <select className="h-10 rounded-md border bg-white px-3 text-sm" value={workSort} onChange={event => setWorkSort(event.target.value)}>
+            <option value="UPDATED_DESC">Mới cập nhật</option>
+            <option value="ACCEPTED_ASC">Nhận sớm trước</option>
+            <option value="STATUS">Theo trạng thái</option>
+          </select>
+        </div>
+        {participations.length === 0 ? <Card><CardContent className="py-12 text-center"><p className="text-gray-600 mb-3">Bạn chưa nhận campaign nào.</p><Button asChild><Link to="/collaborator/marketplace">Mở Marketplace</Link></Button></CardContent></Card> :
+          filteredParticipations.length === 0 ? <Card><CardContent className="py-12 text-center text-gray-500">Không có campaign phù hợp với bộ lọc.</CardContent></Card> :
+          filteredParticipations.map(p => <Card key={p.id}><CardContent className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div><p className="font-semibold">{p.campaign?.title || `Campaign #${p.campaignId}`}</p><p className="text-sm text-gray-500">Nhận lúc {new Date(p.acceptedAt).toLocaleString('vi-VN')}</p></div>
           <div className="flex items-center gap-2"><Badge variant="outline">{p.status}</Badge>{["ACCEPTED", "IN_PROGRESS"].includes(p.status) && <Button size="sm" asChild><Link to={`/collaborator/participation/${p.id}`}><ExternalLink className="w-4 h-4 mr-1" />Mở</Link></Button>}</div>
         </CardContent></Card>)}
@@ -93,4 +139,33 @@ export function HelperFinishedSurveys() {
       </TabsContent>
     </Tabs>
   </div>;
+}
+
+function WorkStat({ label, value }: { label: string; value: number | string }) {
+  return <Card>
+    <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader>
+    <CardContent className="text-2xl font-bold">{value}</CardContent>
+  </Card>;
+}
+
+function RecentWorkActivity({ participations }: { participations: Participation[] }) {
+  if (participations.length === 0) return null;
+
+  return <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-lg">
+        <Activity className="h-5 w-5 text-blue-600" />
+        Hoạt động công việc gần đây
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-3">
+      {participations.map(item => <div key={item.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="font-medium">{item.campaign?.title || `Campaign #${item.campaignId}`}</div>
+          <div className="text-sm text-gray-500">Cập nhật {new Date(item.updatedAt).toLocaleString("vi-VN")}</div>
+        </div>
+        <Badge variant="outline">{item.status}</Badge>
+      </div>)}
+    </CardContent>
+  </Card>;
 }

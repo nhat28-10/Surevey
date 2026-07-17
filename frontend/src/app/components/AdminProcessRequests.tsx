@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { adminApi } from "../../api/adminApi";
-import type { AdminRevenueSummary, CampaignPayment } from "../../api/types";
+import type { AdminRevenueSummary, Campaign, CampaignPayment, Withdrawal } from "../../api/types";
 import { ApiError } from "../../api/httpClient";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
-import { RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { CheckCircle2, Clock, ClipboardList, RefreshCw, WalletCards } from "lucide-react";
 
 function text(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu";
@@ -19,20 +20,28 @@ function money(value: number) {
 
 export function AdminProcessRequests() {
   const [payments, setPayments] = useState<CampaignPayment[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [revenue, setRevenue] = useState<AdminRevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("ALL");
+  const [withdrawalFilter, setWithdrawalFilter] = useState("ALL");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [paymentData, revenueData] = await Promise.all([
+      const [paymentData, campaignData, withdrawalData, revenueData] = await Promise.all([
         adminApi.payments(),
+        adminApi.pendingCampaigns(),
+        adminApi.withdrawals(),
         adminApi.revenueSummary(),
       ]);
       setPayments(paymentData);
+      setCampaigns(campaignData);
+      setWithdrawals(withdrawalData);
       setRevenue(revenueData);
     } catch (err) {
       setError(text(err));
@@ -56,62 +65,166 @@ export function AdminProcessRequests() {
     }
   };
 
-  if (loading) return <div className="py-16 text-center">Đang tải trạng thái thanh toán...</div>;
+  const visiblePayments = useMemo(() => paymentFilter === "ALL" ? payments : payments.filter(p => p.status === paymentFilter), [paymentFilter, payments]);
+  const visibleWithdrawals = useMemo(() => withdrawalFilter === "ALL" ? withdrawals : withdrawals.filter(w => w.status === withdrawalFilter), [withdrawalFilter, withdrawals]);
+  const pendingPayments = payments.filter(p => p.status === "PENDING_VERIFY").length;
+  const pendingWithdrawals = withdrawals.filter(w => w.status === "PENDING").length;
+  const approvedWithdrawals = withdrawals.filter(w => w.status === "APPROVED").length;
+
+  if (loading) return <div className="py-16 text-center">Đang tải dashboard quản trị...</div>;
 
   return <div className="space-y-6">
-    <div className="flex justify-between gap-3 items-center">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-3xl font-bold">Theo dõi thanh toán</h1>
-        <p className="text-gray-600 mt-1">Admin chỉ xem và xác minh thanh toán campaign. Campaign sẽ tự hiển thị cho collaborator sau khi thanh toán được xác minh.</p>
+        <h1 className="text-3xl font-bold">Dashboard quản trị</h1>
+        <p className="text-gray-600 mt-1">Theo dõi các việc cần duyệt: thanh toán, campaign và yêu cầu rút tiền.</p>
       </div>
       <Button variant="outline" onClick={() => void load()}><RefreshCw className="w-4 h-4 mr-2" />Tải lại</Button>
     </div>
 
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-    <div className="grid sm:grid-cols-3 gap-4">
+    <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
       <Stat label="Tổng tiền đã xác minh" value={money(revenue?.totalPaidAmount || 0)} />
       <Stat label="Phí nền tảng" value={money(revenue?.totalPlatformFeeAmount || 0)} />
-      <Stat label="Thanh toán chờ xác minh" value={revenue?.pendingVerifyPaymentCount || 0} />
+      <Stat label="Thanh toán chờ xác minh" value={pendingPayments} />
+      <Stat label="Campaign chờ duyệt" value={campaigns.length} />
+      <Stat label="Withdrawal chờ xử lý" value={pendingWithdrawals + approvedWithdrawals} />
     </div>
 
-    {payments.length === 0 ? <Card><CardContent className="py-12 text-center text-gray-500">Chưa có thanh toán.</CardContent></Card> :
-      <div className="space-y-3">{payments.map(payment => <Card key={payment.id}>
-        <CardContent className="py-4 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <strong>{payment.paymentCode}</strong>
-              <p className="text-sm text-gray-500">Campaign #{payment.campaignId} - Customer #{payment.customerId}</p>
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Clock className="w-5 h-5 text-orange-600" />Hàng đợi cần xử lý</CardTitle></CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-3">
+        <QueueItem icon={<WalletCards className="h-5 w-5" />} label="Xác minh thanh toán" count={pendingPayments} />
+        <QueueItem icon={<ClipboardList className="h-5 w-5" />} label="Duyệt campaign" count={campaigns.length} />
+        <QueueItem icon={<CheckCircle2 className="h-5 w-5" />} label="Xử lý rút tiền" count={pendingWithdrawals + approvedWithdrawals} />
+      </CardContent>
+    </Card>
+
+    <Tabs defaultValue="payments">
+      <TabsList>
+        <TabsTrigger value="payments">Thanh toán</TabsTrigger>
+        <TabsTrigger value="campaigns">Campaign</TabsTrigger>
+        <TabsTrigger value="withdrawals">Rút tiền</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="payments" className="space-y-3 mt-4">
+        <div className="flex justify-end">
+          <select className="h-10 rounded-md border bg-white px-3 text-sm" value={paymentFilter} onChange={event => setPaymentFilter(event.target.value)}>
+            <option value="ALL">Tất cả thanh toán</option>
+            <option value="PENDING_VERIFY">Chờ xác minh</option>
+            <option value="PAID">Đã thanh toán</option>
+            <option value="REJECTED">Bị từ chối</option>
+            <option value="CANCELLED">Đã hủy</option>
+          </select>
+        </div>
+        {visiblePayments.length === 0 ? <Empty text="Không có thanh toán phù hợp." /> : visiblePayments.map(payment => <Card key={payment.id}>
+          <CardContent className="py-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <strong>{payment.paymentCode}</strong>
+                <p className="text-sm text-gray-500">Campaign #{payment.campaignId} - Customer #{payment.customerId}</p>
+              </div>
+              <Badge variant="outline">{payment.status}</Badge>
             </div>
-            <Badge variant="outline">{payment.status}</Badge>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-2 text-sm">
-            <span>Tổng: <strong>{money(payment.totalAmount)}</strong></span>
-            <span>Ngân sách: {money(payment.rewardBudget)}</span>
-            <span>Phí: {money(payment.platformFeeAmount)}</span>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-2 text-sm">
-            <span>Ngân hàng: <strong>{payment.bankName}</strong></span>
-            <span>Nội dung: <strong>{payment.transferContent}</strong></span>
-          </div>
-          <div className="flex flex-wrap gap-3 text-sm">
-            {payment.qrImageUrl && <a href={payment.qrImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">Mở QR</a>}
-            {payment.proofImageUrl && <a href={payment.proofImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">Mở biên lai</a>}
-          </div>
-          {payment.rejectReason && <p className="text-red-600 text-sm">{payment.rejectReason}</p>}
-          {payment.status === "PENDING_VERIFY" && <div className="flex gap-2">
-            <Button disabled={busy === `p-${payment.id}`} onClick={() => void run(`p-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã xác minh thanh toán. Campaign đã được kích hoạt.")}>Xác minh đã thanh toán</Button>
-            <Button variant="destructive" disabled={busy === `p-${payment.id}`} onClick={() => {
-              const reason = window.prompt("Lý do từ chối:");
-              if (reason?.trim()) void run(`p-${payment.id}`, () => adminApi.rejectPayment(payment.id, reason.trim()), "Đã từ chối thanh toán");
-            }}>Từ chối</Button>
-          </div>}
-          {payment.status === "PAID" && <div className="flex gap-2">
-            <Button variant="outline" disabled={busy === `sync-${payment.id}`} onClick={() => void run(`sync-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã đồng bộ campaign sang marketplace.")}>Đồng bộ campaign</Button>
-          </div>}
-        </CardContent>
-      </Card>)}</div>}
+            <div className="grid sm:grid-cols-3 gap-2 text-sm">
+              <span>Tổng: <strong>{money(payment.totalAmount)}</strong></span>
+              <span>Ngân sách: {money(payment.rewardBudget)}</span>
+              <span>Phí: {money(payment.platformFeeAmount)}</span>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2 text-sm">
+              <span>Ngân hàng: <strong>{payment.bankName}</strong></span>
+              <span>Nội dung: <strong>{payment.transferContent}</strong></span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {payment.qrImageUrl && <a href={payment.qrImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">Mở QR</a>}
+              {payment.proofImageUrl && <a href={payment.proofImageUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">Mở biên lai</a>}
+            </div>
+            {payment.rejectReason && <p className="text-red-600 text-sm">{payment.rejectReason}</p>}
+            {payment.status === "PENDING_VERIFY" && <div className="flex gap-2">
+              <Button disabled={busy === `p-${payment.id}`} onClick={() => void run(`p-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã xác minh thanh toán.")}>Xác minh đã thanh toán</Button>
+              <Button variant="destructive" disabled={busy === `p-${payment.id}`} onClick={() => {
+                const reason = window.prompt("Lý do từ chối:");
+                if (reason?.trim()) void run(`p-${payment.id}`, () => adminApi.rejectPayment(payment.id, reason.trim()), "Đã từ chối thanh toán");
+              }}>Từ chối</Button>
+            </div>}
+            {payment.status === "PAID" && <Button variant="outline" disabled={busy === `sync-${payment.id}`} onClick={() => void run(`sync-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã đồng bộ campaign sang marketplace.")}>Đồng bộ campaign</Button>}
+          </CardContent>
+        </Card>)}
+      </TabsContent>
+
+      <TabsContent value="campaigns" className="space-y-3 mt-4">
+        {campaigns.length === 0 ? <Empty text="Không có campaign chờ duyệt." /> : campaigns.map(campaign => <Card key={campaign.id}>
+          <CardContent className="py-4 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <strong>{campaign.title}</strong>
+                <p className="text-sm text-gray-500">Customer #{campaign.customerId} - {campaign.targetResponses} response - {money(campaign.totalAmount)}</p>
+              </div>
+              <Badge variant="outline">{campaign.status}</Badge>
+            </div>
+            <p className="text-sm text-gray-600">{campaign.description}</p>
+            <div className="flex flex-wrap gap-2">
+              {campaign.googleFormUrl && <Button size="sm" variant="outline" type="button" onClick={() => window.open(campaign.googleFormUrl!, "_blank", "noopener,noreferrer")}>Mở form</Button>}
+              <Button size="sm" disabled={busy === `c-${campaign.id}`} onClick={() => void run(`c-${campaign.id}`, () => adminApi.approveCampaign(campaign.id), "Đã duyệt campaign.")}>Duyệt campaign</Button>
+              <Button size="sm" variant="destructive" disabled={busy === `c-${campaign.id}`} onClick={() => {
+                const reason = window.prompt("Lý do từ chối:");
+                if (reason?.trim()) void run(`c-${campaign.id}`, () => adminApi.rejectCampaign(campaign.id, reason.trim()), "Đã từ chối campaign");
+              }}>Từ chối</Button>
+            </div>
+          </CardContent>
+        </Card>)}
+      </TabsContent>
+
+      <TabsContent value="withdrawals" className="space-y-3 mt-4">
+        <div className="flex justify-end">
+          <select className="h-10 rounded-md border bg-white px-3 text-sm" value={withdrawalFilter} onChange={event => setWithdrawalFilter(event.target.value)}>
+            <option value="ALL">Tất cả yêu cầu</option>
+            <option value="PENDING">Chờ duyệt</option>
+            <option value="APPROVED">Đã duyệt, chờ trả</option>
+            <option value="PAID">Đã trả</option>
+            <option value="REJECTED">Bị từ chối</option>
+          </select>
+        </div>
+        {visibleWithdrawals.length === 0 ? <Empty text="Không có yêu cầu rút tiền phù hợp." /> : visibleWithdrawals.map(withdrawal => <Card key={withdrawal.id}>
+          <CardContent className="py-4 space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <strong>{money(withdrawal.amount)}</strong>
+                <p className="text-sm text-gray-500">Collaborator #{withdrawal.collaboratorId} - {new Date(withdrawal.requestedAt).toLocaleString("vi-VN")}</p>
+              </div>
+              <Badge variant="outline">{withdrawal.status}</Badge>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-2 text-sm">
+              <span>Ngân hàng: <strong>{withdrawal.bankName}</strong></span>
+              <span>Chủ TK: <strong>{withdrawal.bankAccountName}</strong></span>
+              <span>Số TK: <strong>{withdrawal.bankAccountNumber}</strong></span>
+            </div>
+            {withdrawal.rejectReason && <p className="text-sm text-red-600">{withdrawal.rejectReason}</p>}
+            {withdrawal.status === "PENDING" && <div className="flex gap-2">
+              <Button size="sm" disabled={busy === `w-${withdrawal.id}`} onClick={() => void run(`w-${withdrawal.id}`, () => adminApi.approveWithdrawal(withdrawal.id), "Đã duyệt yêu cầu rút tiền.")}>Duyệt</Button>
+              <Button size="sm" variant="destructive" disabled={busy === `w-${withdrawal.id}`} onClick={() => {
+                const reason = window.prompt("Lý do từ chối:");
+                if (reason?.trim()) void run(`w-${withdrawal.id}`, () => adminApi.rejectWithdrawal(withdrawal.id, reason.trim()), "Đã từ chối yêu cầu rút tiền");
+              }}>Từ chối</Button>
+            </div>}
+            {withdrawal.status === "APPROVED" && <Button size="sm" disabled={busy === `paid-${withdrawal.id}`} onClick={() => void run(`paid-${withdrawal.id}`, () => adminApi.markWithdrawalPaid(withdrawal.id), "Đã đánh dấu đã chuyển tiền.")}>Đánh dấu đã chuyển tiền</Button>}
+          </CardContent>
+        </Card>)}
+      </TabsContent>
+    </Tabs>
   </div>;
+}
+
+function QueueItem({ icon, label, count }: { icon: ReactNode; label: string; count: number }) {
+  return <div className="flex items-center justify-between rounded-md border bg-white p-3">
+    <div className="flex items-center gap-2 text-sm text-gray-600">{icon}{label}</div>
+    <Badge variant={count > 0 ? "default" : "outline"}>{count}</Badge>
+  </div>;
+}
+
+function Empty({ text }: { text: string }) {
+  return <Card><CardContent className="py-12 text-center text-gray-500">{text}</CardContent></Card>;
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {

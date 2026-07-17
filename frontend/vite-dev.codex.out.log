@@ -1,0 +1,41 @@
+
+> @figma/my-make-file@0.0.1 dev
+> vite --host 127.0.0.1 --port 5173
+
+Port 5173 is in use, trying another one...
+
+  [32m[1mVITE[22m v6.4.3[39m  [2mready in [0m[1m1038[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5174[22m/[39m
+[2m6:35:43 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:35:43 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:35:43 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:35:43 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:36:03 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:36:03 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:36:11 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:36:11 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:36:11 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:36:22 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:36:22 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:36:33 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:36:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:36:33 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:36:33 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:37:02 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:37:02 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:40:33 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:40:33 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:40:33 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:40:43 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:40:43 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:40:45 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:40:45 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:40:45 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:40:55 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:40:55 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:40:56 PM[22m [36m[1m[vite][22m[39m [32m.env changed, restarting server...[39m
+[2m6:40:56 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m6:40:56 PM[22m [36m[1m[vite][22m[39m server restarted.
+[2m6:41:07 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m6:41:07 PM[22m [36m[1m[vite][22m[39m server restarted.
