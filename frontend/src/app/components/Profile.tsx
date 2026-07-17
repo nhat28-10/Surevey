@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { ProfileSkeleton } from "./LoadingStates";
 
 interface ProfileForm {
   userId: number;
@@ -105,7 +106,7 @@ export function Profile() {
     }
   };
 
-  if (loading) return <div className="py-16 text-center text-gray-600">Đang tải hồ sơ từ UserService...</div>;
+  if (loading) return <ProfileSkeleton />;
   if (!form) return <Alert variant="destructive"><AlertDescription>{error || "Không tìm thấy hồ sơ"}</AlertDescription></Alert>;
 
   return (
