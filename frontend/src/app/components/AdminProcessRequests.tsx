@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { CheckCircle2, Clock, ClipboardList, RefreshCw, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AdminDashboardSkeleton } from "./LoadingStates";
+import { EmptyState } from "./EmptyState";
 
 function text(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu";
@@ -131,7 +133,7 @@ export function AdminProcessRequests() {
     .filter(withdrawal => withdrawal.status === "PENDING" || withdrawal.status === "APPROVED")
     .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
 
-  if (loading) return <div className="py-16 text-center">Đang tải dashboard quản trị...</div>;
+  if (loading) return <AdminDashboardSkeleton />;
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -488,5 +490,5 @@ function EmptyChartLabel({ text }: { text: string }) {
 }
 
 function Empty({ text }: { text: string }) {
-  return <Card><CardContent className="py-12 text-center text-gray-500">{text}</CardContent></Card>;
+  return <EmptyState compact icon={<ClipboardList className="h-5 w-5" />} title={text} />;
 }

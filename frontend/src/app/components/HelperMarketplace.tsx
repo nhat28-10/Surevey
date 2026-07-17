@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { campaignApi } from "../../api/campaignApi";
@@ -10,6 +10,8 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Calendar, Clock, Search, Users, Wallet } from "lucide-react";
+import { MarketplaceSkeleton } from "./LoadingStates";
+import { EmptyState } from "./EmptyState";
 
 function errorText(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể tải marketplace";
@@ -74,6 +76,8 @@ export function HelperMarketplace() {
     }
   };
 
+  if (loading) return <MarketplaceSkeleton />;
+
   return <div className="space-y-6">
     <div>
       <h1 className="text-3xl font-bold">Marketplace khảo sát</h1>
@@ -84,16 +88,16 @@ export function HelperMarketplace() {
       <Summary label="Tổng slot còn lại" value={marketplaceStats.totalSlots} />
       <Summary label="Thưởng cao nhất" value={`${marketplaceStats.bestReward.toLocaleString("vi-VN")} đ`} />
     </div>
-    <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+    <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_auto_auto]">
       <div className="relative">
         <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-        <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề, mô tả hoặc danh mục" className="pl-9" />
+        <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề, mô tả hoặc danh mục" className="border-slate-300 pl-9 shadow-sm focus:border-slate-700" />
       </div>
-      <select className="h-10 rounded-md border bg-white px-3 text-sm" value={category} onChange={event => setCategory(event.target.value)}>
+      <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={category} onChange={event => setCategory(event.target.value)}>
         <option value="ALL">Tất cả danh mục</option>
         {categories.map(item => <option key={item} value={item}>{item}</option>)}
       </select>
-      <select className="h-10 rounded-md border bg-white px-3 text-sm" value={sortBy} onChange={event => setSortBy(event.target.value)}>
+      <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={sortBy} onChange={event => setSortBy(event.target.value)}>
         <option value="DEADLINE_ASC">Gần hết hạn trước</option>
         <option value="REWARD_DESC">Thưởng cao trước</option>
         <option value="SLOTS_DESC">Nhiều slot trước</option>
@@ -101,28 +105,49 @@ export function HelperMarketplace() {
       </select>
     </div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-    {loading ? <div className="py-16 text-center text-gray-600">Đang tải campaign...</div> : filtered.length === 0 ?
-      <Card><CardContent className="py-16 text-center text-gray-600">Hiện chưa có campaign phù hợp. Campaign mới sẽ xuất hiện sau khi thanh toán được xác minh.</CardContent></Card> :
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">{filtered.map(campaign => <Card key={campaign.id} className="flex flex-col hover:shadow-md transition-shadow">
-        <CardHeader><div className="flex justify-between items-start gap-3"><CardTitle className="text-lg">{campaign.title}</CardTitle><Badge variant="outline">{campaign.category}</Badge></div></CardHeader>
-        <CardContent className="flex-1 flex flex-col gap-4">
-          <p className="text-sm text-gray-600 line-clamp-3">{campaign.description}</p>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2"><Wallet className="w-4 h-4 text-green-600" /><strong>{campaign.rewardPerResponse.toLocaleString("vi-VN")} đ</strong></div>
-            <div className="flex items-center gap-2"><Users className="w-4 h-4 text-orange-600" />Còn {campaign.remainingSlots}</div>
-            <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-purple-600" />{new Date(campaign.deadline).toLocaleDateString("vi-VN")}</div>
-            <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-blue-600" />Link ngoài</div>
+    {filtered.length === 0 ?
+      <EmptyState
+        icon={<Search className="h-5 w-5" />}
+        title="Chưa có campaign phù hợp"
+        description="Campaign mới sẽ xuất hiện sau khi Customer thanh toán và Admin xác minh. Bạn có thể đổi từ khóa hoặc danh mục để kiểm tra lại."
+      /> :
+      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">{filtered.map(campaign => <Card key={campaign.id} className="flex flex-col overflow-hidden border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+        <CardHeader className="border-b border-slate-200 bg-green-50/70">
+          <div className="flex justify-between items-start gap-3">
+            <CardTitle className="text-lg text-slate-950">{campaign.title}</CardTitle>
+            <Badge variant="outline" className="rounded-full border-green-200 bg-green-100 px-3 py-1 text-green-800">{campaign.category}</Badge>
           </div>
-          <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600 line-clamp-3">{campaign.instruction}</div>
-          <Button className="mt-auto bg-green-600 hover:bg-green-700" disabled={busyId === campaign.id} onClick={() => void accept(campaign)}>{busyId === campaign.id ? "Đang nhận..." : "Nhận campaign"}</Button>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col gap-4 p-4">
+          <p className="text-sm text-slate-600 line-clamp-3">{campaign.description}</p>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <MarketMetric icon={<Wallet className="w-4 h-4" />} label="Thưởng" value={`${campaign.rewardPerResponse.toLocaleString("vi-VN")} đ`} tone="green" />
+            <MarketMetric icon={<Users className="w-4 h-4" />} label="Còn slot" value={campaign.remainingSlots} tone="orange" />
+            <MarketMetric icon={<Calendar className="w-4 h-4" />} label="Hạn" value={new Date(campaign.deadline).toLocaleDateString("vi-VN")} />
+            <MarketMetric icon={<Clock className="w-4 h-4" />} label="Loại" value="Link ngoài" />
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 line-clamp-3">{campaign.instruction}</div>
+          <Button className="mt-auto bg-slate-900 font-semibold text-white hover:bg-slate-800" disabled={busyId === campaign.id} onClick={() => void accept(campaign)}>{busyId === campaign.id ? "Đang nhận..." : "Nhận campaign"}</Button>
         </CardContent>
       </Card>)}</div>}
   </div>;
 }
 
 function Summary({ label, value }: { label: string; value: number | string }) {
-  return <Card>
-    <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader>
-    <CardContent className="text-2xl font-bold">{value}</CardContent>
+  return <Card className="border-slate-200 bg-white shadow-sm">
+    <CardHeader className="pb-2"><CardTitle className="text-sm text-slate-500">{label}</CardTitle></CardHeader>
+    <CardContent className="text-2xl font-bold text-slate-950">{value}</CardContent>
   </Card>;
+}
+
+function MarketMetric({ icon, label, value, tone = "slate" }: { icon: ReactNode; label: string; value: number | string; tone?: "green" | "orange" | "slate" }) {
+  const toneClass = tone === "green"
+    ? "border-green-200 bg-green-50 text-green-800"
+    : tone === "orange"
+      ? "border-orange-200 bg-orange-50 text-orange-800"
+      : "border-slate-200 bg-slate-50 text-slate-800";
+  return <div className={`rounded-lg border p-3 ${toneClass}`}>
+    <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide opacity-80">{icon}{label}</div>
+    <div className="mt-1 font-bold">{value}</div>
+  </div>;
 }

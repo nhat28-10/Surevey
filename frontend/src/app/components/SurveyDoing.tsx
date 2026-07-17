@@ -11,6 +11,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Alert, AlertDescription } from "./ui/alert";
 import { ExternalLink } from "lucide-react";
+import { DetailSkeleton } from "./LoadingStates";
 
 function errorText(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu";
@@ -96,7 +97,7 @@ export function SurveyDoing() {
     }
   };
 
-  if (loading) return <div className="py-16 text-center">Đang tải participation...</div>;
+  if (loading) return <DetailSkeleton />;
   if (!participation?.campaign) return <Alert variant="destructive"><AlertDescription>{error || "Không tìm thấy dữ liệu"}</AlertDescription></Alert>;
 
   const alreadySubmitted = ["SUBMITTED", "APPROVED"].includes(participation.status);
