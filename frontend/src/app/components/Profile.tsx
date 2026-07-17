@@ -61,7 +61,7 @@ function toPayload(form: ProfileForm): UserProfile {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof ApiError || error instanceof Error ? error.message : "Khong the tai ho so";
+  return error instanceof ApiError || error instanceof Error ? error.message : "Không thể tải hồ sơ";
 }
 
 export function Profile() {
@@ -95,7 +95,7 @@ export function Profile() {
     setError("");
     try {
       await authApi.updateProfile(toPayload(form));
-      toast.success("Da cap nhat ho so");
+      toast.success("Đã cập nhật hồ sơ");
       setForm(toForm(await authApi.profile()));
       window.dispatchEvent(new Event("auth-changed"));
     } catch (err) {
@@ -105,15 +105,15 @@ export function Profile() {
     }
   };
 
-  if (loading) return <div className="py-16 text-center text-gray-600">Dang tai ho so tu UserService...</div>;
-  if (!form) return <Alert variant="destructive"><AlertDescription>{error || "Khong tim thay ho so"}</AlertDescription></Alert>;
+  if (loading) return <div className="py-16 text-center text-gray-600">Đang tải hồ sơ từ UserService...</div>;
+  if (!form) return <Alert variant="destructive"><AlertDescription>{error || "Không tìm thấy hồ sơ"}</AlertDescription></Alert>;
 
   return (
     <div className="max-w-3xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Ho so ca nhan</CardTitle>
-          <CardDescription>Du lieu duoc tai va cap nhat qua UserService.</CardDescription>
+          <CardTitle className="text-2xl">Hồ sơ cá nhân</CardTitle>
+          <CardDescription>Dữ liệu được tải và cập nhật qua UserService.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-5">
@@ -121,7 +121,7 @@ export function Profile() {
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="userName">Ten dang nhap</Label>
+                <Label htmlFor="userName">Tên đăng nhập</Label>
                 <Input id="userName" value={form.userName} readOnly />
               </div>
               <div className="space-y-2">
@@ -129,11 +129,11 @@ export function Profile() {
                 <Input id="email" type="email" value={form.email} readOnly />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fullName">Ho va ten</Label>
+                <Label htmlFor="fullName">Họ và tên</Label>
                 <Input id="fullName" value={form.fullName} onChange={event => setField("fullName", event.target.value)} maxLength={200} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Vai tro</Label>
+                <Label htmlFor="role">Vai trò</Label>
                 <Input id="role" value={form.roleName} readOnly />
               </div>
               <div className="space-y-2">
@@ -141,27 +141,27 @@ export function Profile() {
                 <Input id="identityCard" value={form.identityCard} onChange={event => setField("identityCard", event.target.value)} maxLength={12} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sex">Gioi tinh</Label>
+                <Label htmlFor="sex">Giới tính</Label>
                 <Input id="sex" value={form.sex} onChange={event => setField("sex", event.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">So dien thoai</Label>
+                <Label htmlFor="phone">Số điện thoại</Label>
                 <Input id="phone" value={form.phoneNumber} onChange={event => setField("phoneNumber", event.target.value)} maxLength={15} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Ngay sinh</Label>
+                <Label htmlFor="dateOfBirth">Ngày sinh</Label>
                 <Input id="dateOfBirth" type="date" value={form.dateOfBirth} onChange={event => setField("dateOfBirth", event.target.value)} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Dia chi</Label>
+              <Label htmlFor="address">Địa chỉ</Label>
               <Input id="address" value={form.address} onChange={event => setField("address", event.target.value)} maxLength={200} />
             </div>
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving} className="bg-green-600 hover:bg-green-700">
-                {saving ? "Dang luu..." : "Luu ho so"}
+                {saving ? "Đang lưu..." : "Lưu hồ sơ"}
               </Button>
             </div>
           </form>

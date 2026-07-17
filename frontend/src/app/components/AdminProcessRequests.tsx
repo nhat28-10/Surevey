@@ -70,6 +70,13 @@ export function AdminProcessRequests() {
   const pendingPayments = payments.filter(p => p.status === "PENDING_VERIFY").length;
   const pendingWithdrawals = withdrawals.filter(w => w.status === "PENDING").length;
   const approvedWithdrawals = withdrawals.filter(w => w.status === "APPROVED").length;
+  const paidPayments = payments.filter(p => p.status === "PAID").length;
+  const rejectedPayments = payments.filter(p => p.status === "REJECTED").length;
+  const pendingCampaignResponses = campaigns.reduce((sum, campaign) => sum + campaign.targetResponses, 0);
+  const pendingCampaignBudget = campaigns.reduce((sum, campaign) => sum + campaign.totalAmount, 0);
+  const pendingWithdrawalAmount = withdrawals
+    .filter(withdrawal => withdrawal.status === "PENDING" || withdrawal.status === "APPROVED")
+    .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
 
   if (loading) return <div className="py-16 text-center">Đang tải dashboard quản trị...</div>;
 
@@ -84,22 +91,19 @@ export function AdminProcessRequests() {
 
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-    <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
-      <Stat label="Tổng tiền đã xác minh" value={money(revenue?.totalPaidAmount || 0)} />
-      <Stat label="Phí nền tảng" value={money(revenue?.totalPlatformFeeAmount || 0)} />
-      <Stat label="Thanh toán chờ xác minh" value={pendingPayments} />
-      <Stat label="Campaign chờ duyệt" value={campaigns.length} />
-      <Stat label="Withdrawal chờ xử lý" value={pendingWithdrawals + approvedWithdrawals} />
-    </div>
-
-    <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Clock className="w-5 h-5 text-orange-600" />Hàng đợi cần xử lý</CardTitle></CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-3">
-        <QueueItem icon={<WalletCards className="h-5 w-5" />} label="Xác minh thanh toán" count={pendingPayments} />
-        <QueueItem icon={<ClipboardList className="h-5 w-5" />} label="Duyệt campaign" count={campaigns.length} />
-        <QueueItem icon={<CheckCircle2 className="h-5 w-5" />} label="Xử lý rút tiền" count={pendingWithdrawals + approvedWithdrawals} />
-      </CardContent>
-    </Card>
+    <AdminOverviewColumns
+      totalPaidAmount={revenue?.totalPaidAmount || 0}
+      platformFeeAmount={revenue?.totalPlatformFeeAmount || 0}
+      pendingPayments={pendingPayments}
+      paidPayments={paidPayments}
+      rejectedPayments={rejectedPayments}
+      pendingCampaigns={campaigns.length}
+      pendingCampaignResponses={pendingCampaignResponses}
+      pendingCampaignBudget={pendingCampaignBudget}
+      pendingWithdrawals={pendingWithdrawals}
+      approvedWithdrawals={approvedWithdrawals}
+      pendingWithdrawalAmount={pendingWithdrawalAmount}
+    />
 
     <Tabs defaultValue="payments">
       <TabsList>
@@ -216,17 +220,116 @@ export function AdminProcessRequests() {
   </div>;
 }
 
-function QueueItem({ icon, label, count }: { icon: ReactNode; label: string; count: number }) {
-  return <div className="flex items-center justify-between rounded-md border bg-white p-3">
-    <div className="flex items-center gap-2 text-sm text-gray-600">{icon}{label}</div>
-    <Badge variant={count > 0 ? "default" : "outline"}>{count}</Badge>
+function AdminOverviewColumns({
+  totalPaidAmount,
+  platformFeeAmount,
+  pendingPayments,
+  paidPayments,
+  rejectedPayments,
+  pendingCampaigns,
+  pendingCampaignResponses,
+  pendingCampaignBudget,
+  pendingWithdrawals,
+  approvedWithdrawals,
+  pendingWithdrawalAmount,
+}: {
+  totalPaidAmount: number;
+  platformFeeAmount: number;
+  pendingPayments: number;
+  paidPayments: number;
+  rejectedPayments: number;
+  pendingCampaigns: number;
+  pendingCampaignResponses: number;
+  pendingCampaignBudget: number;
+  pendingWithdrawals: number;
+  approvedWithdrawals: number;
+  pendingWithdrawalAmount: number;
+}) {
+  return <div className="grid gap-4 xl:grid-cols-4">
+    <OperationColumn
+      icon={<WalletCards className="h-5 w-5" />}
+      title="Thanh toán"
+      description="Theo dõi giao dịch campaign cần xác minh."
+      tone="green"
+      rows={[
+        ["Chờ xác minh", pendingPayments],
+        ["Đã xác minh", paidPayments],
+        ["Bị từ chối", rejectedPayments],
+      ]}
+    />
+    <OperationColumn
+      icon={<ClipboardList className="h-5 w-5" />}
+      title="Campaign"
+      description="Campaign đang chờ kiểm tra trước khi lên marketplace."
+      tone="blue"
+      rows={[
+        ["Chờ duyệt", pendingCampaigns],
+        ["Response mục tiêu", pendingCampaignResponses],
+        ["Giá trị chờ duyệt", money(pendingCampaignBudget)],
+      ]}
+    />
+    <OperationColumn
+      icon={<CheckCircle2 className="h-5 w-5" />}
+      title="Rút tiền"
+      description="Yêu cầu rút tiền cần duyệt hoặc đánh dấu đã chuyển."
+      tone="orange"
+      rows={[
+        ["Chờ duyệt", pendingWithdrawals],
+        ["Đã duyệt, chờ trả", approvedWithdrawals],
+        ["Tổng tiền cần xử lý", money(pendingWithdrawalAmount)],
+      ]}
+    />
+    <OperationColumn
+      icon={<Clock className="h-5 w-5" />}
+      title="Doanh thu"
+      description="Số liệu tổng hợp từ các thanh toán đã xác minh."
+      tone="slate"
+      rows={[
+        ["Tổng tiền đã xác minh", money(totalPaidAmount)],
+        ["Phí nền tảng", money(platformFeeAmount)],
+        ["Tỷ lệ phí thực tế", totalPaidAmount > 0 ? `${Math.round(platformFeeAmount / totalPaidAmount * 100)}%` : "0%"],
+      ]}
+    />
   </div>;
+}
+
+function OperationColumn({
+  icon,
+  title,
+  description,
+  tone,
+  rows,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  tone: "green" | "blue" | "orange" | "slate";
+  rows: Array<[string, number | string]>;
+}) {
+  const toneClass = {
+    green: "bg-green-50 text-green-700 border-green-100",
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    orange: "bg-orange-50 text-orange-700 border-orange-100",
+    slate: "bg-slate-50 text-slate-700 border-slate-100",
+  }[tone];
+
+  return <Card className="overflow-hidden">
+    <CardHeader className={`${toneClass} border-b`}>
+      <CardTitle className="flex items-center gap-2 text-base">
+        {icon}
+        {title}
+      </CardTitle>
+      <p className="text-sm font-normal text-gray-600">{description}</p>
+    </CardHeader>
+    <CardContent className="divide-y p-0">
+      {rows.map(([label, value]) => <div key={label} className="grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3">
+        <span className="text-sm text-gray-600">{label}</span>
+        <strong className="text-right text-sm text-gray-900">{value}</strong>
+      </div>)}
+    </CardContent>
+  </Card>;
 }
 
 function Empty({ text }: { text: string }) {
   return <Card><CardContent className="py-12 text-center text-gray-500">{text}</CardContent></Card>;
-}
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader><CardContent className="text-2xl font-bold">{value}</CardContent></Card>;
 }

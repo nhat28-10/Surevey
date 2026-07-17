@@ -25,6 +25,8 @@ export function Layout() {
     navigate("/");
   };
 
+  const brandPath = currentUser?.role === "Admin" ? "/dashboard" : "/";
+
   const navClass = (path: string) => `flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
     (path === "/" ? location.pathname === "/" : location.pathname.startsWith(path))
       ? "bg-green-600 text-white"
@@ -35,13 +37,13 @@ export function Layout() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center gap-5">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
+          <Link to={brandPath} className="flex items-center gap-2 shrink-0">
             <ClipboardList className="w-8 h-8 text-green-600" />
             <span className="text-2xl font-bold text-green-600">SureVey</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            <Link to="/" className={navClass("/")}><Home className="w-4 h-4" />Trang chủ</Link>
+            {currentUser?.role !== "Admin" && <Link to="/" className={navClass("/")}><Home className="w-4 h-4" />Trang chủ</Link>}
             {currentUser?.role === "Customer" && <>
               <Link to="/customer/dashboard" className={navClass("/customer/dashboard")}><ClipboardList className="w-4 h-4" />Campaign của tôi</Link>
               <Link to="/customer/post" className={navClass("/customer/post")}><PlusCircle className="w-4 h-4" />Tạo campaign</Link>
@@ -55,7 +57,7 @@ export function Layout() {
             {currentUser && currentUser.role !== "Admin" &&
               <Link to="/support/faq" className={navClass("/support")}><HelpCircle className="w-4 h-4" />Hỗ trợ</Link>}
             {currentUser &&
-              <Link to="/profile" className={navClass("/profile")}><UserCircle className="w-4 h-4" />Ho so</Link>}
+              <Link to="/profile" className={navClass("/profile")}><UserCircle className="w-4 h-4" />Hồ sơ</Link>}
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
@@ -76,7 +78,7 @@ export function Layout() {
           {currentUser.role === "Customer" && <><Link to="/customer/dashboard" className={navClass("/customer/dashboard")}>Campaign</Link><Link to="/customer/post" className={navClass("/customer/post")}>Tạo mới</Link></>}
           {currentUser.role === "Collaborator" && <><Link to="/collaborator/marketplace" className={navClass("/collaborator/marketplace")}>Marketplace</Link><Link to="/collaborator/activities" className={navClass("/collaborator/activities")}>Công việc & ví</Link></>}
           {currentUser.role === "Admin" && <Link to="/admin" className={navClass("/admin")}>Quản trị</Link>}
-          <Link to="/profile" className={navClass("/profile")}>Ho so</Link>
+          <Link to="/profile" className={navClass("/profile")}>Hồ sơ</Link>
         </nav>}
       </header>
 
