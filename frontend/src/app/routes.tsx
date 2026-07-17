@@ -14,6 +14,7 @@ import { AdminProcessRequests } from "./components/AdminProcessRequests";
 import { SurveyDetail } from "./components/SurveyDetail";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Profile } from "./components/Profile";
+import { Dashboard } from "./components/Dashboard";
 
 export const router = createBrowserRouter([{
   path: "/",
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([{
     { index: true, Component: Home },
     { path: "login", Component: Login },
     { path: "signup", Component: Signup },
+    { path: "dashboard", element: <ProtectedRoute><Dashboard /></ProtectedRoute> },
     { path: "customer/dashboard", element: <ProtectedRoute roles={["Customer"]}><OwnerDashboard /></ProtectedRoute> },
     { path: "customer/post", element: <ProtectedRoute roles={["Customer"]}><PostSurvey /></ProtectedRoute> },
     { path: "customer/campaign/:surveyId", element: <ProtectedRoute roles={["Customer"]}><SurveyDetail /></ProtectedRoute> },

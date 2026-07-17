@@ -34,14 +34,7 @@ export function Login() {
     setIsLoading(false);
 
     if (result.success) {
-      // Navigate based on role
-      if (result.user?.role === "Admin") {
-        navigate("/admin");
-      } else if (result.user?.role === "Customer") {
-        navigate("/customer/dashboard");
-      } else {
-        navigate("/collaborator/marketplace");
-      }
+      navigate("/dashboard");
       // Force re-render
       window.dispatchEvent(new Event("storage"));
     } else {

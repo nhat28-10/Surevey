@@ -6,13 +6,7 @@ import { getCurrentUser } from "../services/authService";
 
 export function Home() {
   const user = getCurrentUser();
-  const primaryPath = user?.role === "Customer"
-    ? "/customer/dashboard"
-    : user?.role === "Collaborator"
-      ? "/collaborator/marketplace"
-      : user?.role === "Admin"
-        ? "/admin"
-        : "/signup";
+  const primaryPath = user ? "/dashboard" : "/signup";
   const primaryLabel = user?.role === "Customer"
     ? "Mở campaign của tôi"
     : user?.role === "Collaborator"

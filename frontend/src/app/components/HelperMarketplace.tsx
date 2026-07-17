@@ -19,6 +19,8 @@ export function HelperMarketplace() {
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<AvailableCampaign[]>([]);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("ALL");
+  const [sortBy, setSortBy] = useState("DEADLINE_ASC");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -37,7 +39,27 @@ export function HelperMarketplace() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const filtered = useMemo(() => campaigns.filter(c => `${c.title} ${c.description} ${c.category}`.toLowerCase().includes(query.toLowerCase())), [campaigns, query]);
+  const categories = useMemo(() => Array.from(new Set(campaigns.map(c => c.category).filter(Boolean))).sort(), [campaigns]);
+  const marketplaceStats = useMemo(() => ({
+    total: campaigns.length,
+    totalSlots: campaigns.reduce((sum, c) => sum + c.remainingSlots, 0),
+    bestReward: campaigns.reduce((max, c) => Math.max(max, c.rewardPerResponse), 0),
+  }), [campaigns]);
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.toLowerCase();
+    const data = campaigns.filter(c => {
+      const matchesQuery = `${c.title} ${c.description} ${c.category}`.toLowerCase().includes(normalizedQuery);
+      const matchesCategory = category === "ALL" || c.category === category;
+      return matchesQuery && matchesCategory;
+    });
+
+    return data.sort((a, b) => {
+      if (sortBy === "REWARD_DESC") return b.rewardPerResponse - a.rewardPerResponse;
+      if (sortBy === "SLOTS_DESC") return b.remainingSlots - a.remainingSlots;
+      if (sortBy === "NEWEST") return b.id - a.id;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+  }, [campaigns, category, query, sortBy]);
 
   const accept = async (campaign: AvailableCampaign) => {
     setBusyId(campaign.id);
@@ -57,9 +79,26 @@ export function HelperMarketplace() {
       <h1 className="text-3xl font-bold">Marketplace khảo sát</h1>
       <p className="text-gray-600 mt-1">Chỉ hiển thị campaign đã thanh toán, còn hạn và còn lượt nhận.</p>
     </div>
-    <div className="relative max-w-xl">
-      <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-      <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề, mô tả hoặc danh mục" className="pl-9" />
+    <div className="grid sm:grid-cols-3 gap-4">
+      <Summary label="Campaign khả dụng" value={marketplaceStats.total} />
+      <Summary label="Tổng slot còn lại" value={marketplaceStats.totalSlots} />
+      <Summary label="Thưởng cao nhất" value={`${marketplaceStats.bestReward.toLocaleString("vi-VN")} đ`} />
+    </div>
+    <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+      <div className="relative">
+        <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+        <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tiêu đề, mô tả hoặc danh mục" className="pl-9" />
+      </div>
+      <select className="h-10 rounded-md border bg-white px-3 text-sm" value={category} onChange={event => setCategory(event.target.value)}>
+        <option value="ALL">Tất cả danh mục</option>
+        {categories.map(item => <option key={item} value={item}>{item}</option>)}
+      </select>
+      <select className="h-10 rounded-md border bg-white px-3 text-sm" value={sortBy} onChange={event => setSortBy(event.target.value)}>
+        <option value="DEADLINE_ASC">Gần hết hạn trước</option>
+        <option value="REWARD_DESC">Thưởng cao trước</option>
+        <option value="SLOTS_DESC">Nhiều slot trước</option>
+        <option value="NEWEST">Mới nhất</option>
+      </select>
     </div>
     {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
     {loading ? <div className="py-16 text-center text-gray-600">Đang tải campaign...</div> : filtered.length === 0 ?
@@ -79,4 +118,11 @@ export function HelperMarketplace() {
         </CardContent>
       </Card>)}</div>}
   </div>;
+}
+
+function Summary({ label, value }: { label: string; value: number | string }) {
+  return <Card>
+    <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">{label}</CardTitle></CardHeader>
+    <CardContent className="text-2xl font-bold">{value}</CardContent>
+  </Card>;
 }
