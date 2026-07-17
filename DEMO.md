@@ -1,185 +1,184 @@
-# Huong dan demo SureVey
+# Hướng dẫn demo SureVey
 
-Tai lieu nay dung de chuan bi va thuyet trinh demo cho du an SureVey. Muc tieu la giup nguoi xem hieu ro he thong co 3 vai tro, co luong nghiep vu end-to-end, co phan quyen, co thanh toan, co marketplace khao sat va co vi/rut tien.
+Tài liệu này dùng để chuẩn bị và thuyết trình demo cho dự án SureVey. Mục tiêu là giúp người xem hiểu rõ hệ thống có 3 vai trò, có luồng nghiệp vụ end-to-end, có phân quyền, có thanh toán, có marketplace khảo sát và có ví/rút tiền.
 
-## 1. Tong quan he thong
+## 1. Tổng quan hệ thống
 
-SureVey la nen tang ket noi nguoi tao khao sat voi nguoi tham gia lam khao sat.
+SureVey là nền tảng kết nối người tạo khảo sát với người tham gia làm khảo sát.
 
-He thong co 3 vai tro chinh:
+Hệ thống có 3 vai trò chính:
 
-- `Customer`: tao campaign khao sat, dat so luong response muc tieu, thanh toan, theo doi tien do va duyet submission.
-- `Collaborator`: xem marketplace, nhan campaign, lam khao sat, nop ket qua va nhan thuong vao vi.
-- `Admin`: xac minh thanh toan, duyet campaign, quan ly yeu cau rut tien va theo doi doanh thu nen tang.
+- `Customer`: tạo campaign khảo sát, đặt số lượng response mục tiêu, thanh toán, theo dõi tiến độ và duyệt submission.
+- `Collaborator`: xem marketplace, nhận campaign, làm khảo sát, nộp kết quả và nhận thưởng vào ví.
+- `Admin`: xác minh thanh toán, duyệt campaign, quản lý yêu cầu rút tiền và theo dõi doanh thu nền tảng.
 
-## 2. Diem noi bat khi demo
+## 2. Điểm nổi bật khi demo
 
-- Dang nhap theo role va dashboard hien thi khac nhau theo tung role.
-- Customer co the tao campaign va theo doi tien do response da dat.
-- Admin co dashboard quan tri gom thanh toan, campaign cho duyet va rut tien.
-- Collaborator co marketplace de nhan campaign va trang cong viec/vi de theo doi tien thuong.
-- Du lieu hien thi lay tu backend, khong can hard-code so lieu tren giao dien.
+- Đăng nhập theo role và dashboard hiển thị khác nhau theo từng role.
+- Customer có thể tạo campaign và theo dõi tiến độ response đã đặt.
+- Admin có dashboard quản trị gồm thanh toán, campaign chờ duyệt và rút tiền.
+- Collaborator có marketplace để nhận campaign và trang công việc/ví để theo dõi tiền thưởng.
+- Dữ liệu hiển thị lấy từ backend, không cần hard-code số liệu trên giao diện.
 
-## 3. Tai khoan demo
+## 3. Tài khoản demo
 
-Dien tai khoan demo that cua nhom vao bang ben duoi truoc khi thuyet trinh.
+Điền tài khoản demo thật của nhóm vào bảng bên dưới trước khi thuyết trình.
 
-| Vai tro | Email | Mat khau | Ghi chu |
+| Vai trò | Email | Mật khẩu | Ghi chú |
 | --- | --- | --- | --- |
-| Admin | `admin@example.com` | `123456` | Xac minh thanh toan, duyet campaign, xu ly rut tien |
-| Customer | `customer@example.com` | `123456` | Tao campaign, thanh toan, theo doi response |
-| Collaborator | `collaborator@example.com` | `123456` | Nhan campaign, nop submission, xem vi |
+| Admin | `admin@example.com` | `123456` | Xác minh thanh toán, duyệt campaign, xử lý rút tiền |
+| Customer | `customer@example.com` | `123456` | Tạo campaign, thanh toán, theo dõi response |
+| Collaborator | `collaborator@example.com` | `123456` | Nhận campaign, nộp submission, xem ví |
 
-## 4. Chuan bi du lieu truoc demo
+## 4. Chuẩn bị dữ liệu trước demo
 
-Nen co san du lieu o nhieu trang thai de khi demo giao dien trong day du hon.
+Nên có sẵn dữ liệu ở nhiều trạng thái để khi demo giao diện trông đầy đủ hơn.
 
-- 1 campaign moi tao/chua thanh toan.
-- 1 campaign da gui bien lai va dang cho Admin xac minh.
-- 1 campaign da thanh toan va dang cho Admin duyet.
-- 1 campaign dang ACTIVE tren marketplace.
-- 1 campaign da co submission cho Customer duyet.
-- 1 collaborator co tien trong vi.
-- 1 yeu cau rut tien dang cho Admin xu ly.
+- 1 campaign mới tạo/chưa thanh toán.
+- 1 campaign đã gửi biên lai và đang chờ Admin xác minh.
+- 1 campaign đã thanh toán và đang chờ Admin duyệt.
+- 1 campaign đang ACTIVE trên marketplace.
+- 1 campaign đã có submission cho Customer duyệt.
+- 1 collaborator có tiền trong ví.
+- 1 yêu cầu rút tiền đang chờ Admin xử lý.
 
-## 5. Luong demo de xuat
+## 5. Luồng demo đề xuất
 
-### Buoc 1: Gioi thieu trang chu
+### Bước 1: Giới thiệu trang chủ
 
-Mo ung dung va gioi thieu nhanh:
+Mở ứng dụng và giới thiệu nhanh:
 
-- SureVey co 3 vai tro: Customer, Collaborator, Admin.
-- Moi vai tro co dashboard va chuc nang rieng.
-- He thong tap trung vao luong tao campaign, thanh toan, lam khao sat, duyet ket qua va tra thuong.
+- SureVey có 3 vai trò: Customer, Collaborator, Admin.
+- Mỗi vai trò có dashboard và chức năng riêng.
+- Hệ thống tập trung vào luồng tạo campaign, thanh toán, làm khảo sát, duyệt kết quả và trả thưởng.
 
-### Buoc 2: Demo Customer
+### Bước 2: Demo Customer
 
-Dang nhap bang tai khoan `Customer`.
+Đăng nhập bằng tài khoản `Customer`.
 
-Can demo:
+Cần demo:
 
-- Sau khi dang nhap, he thong vao dashboard cua Customer.
-- Dashboard hien thi tong campaign, campaign dang hien thi, campaign cho thanh toan va so response da duyet.
-- Khu vuc "Tien do response da dat" cho biet:
-  - Tong response muc tieu da thanh toan.
-  - Response da duyet.
-  - Response con thieu de dat 100%.
-  - Phan tram hoan thanh.
-- Customer co the loc/sap xep campaign theo trang thai, tien do, deadline.
-- Mo chi tiet campaign de xem submission va duyet/tu choi submission.
+- Sau khi đăng nhập, hệ thống vào dashboard của Customer.
+- Dashboard hiển thị tổng campaign, campaign đang hiển thị, campaign chờ thanh toán và số response đã duyệt.
+- Khu vực "Tiến độ response đã đặt" cho biết:
+  - Tổng response mục tiêu đã thanh toán.
+  - Response đã duyệt.
+  - Response còn thiếu để đạt 100%.
+  - Phần trăm hoàn thành.
+- Customer có thể lọc/sắp xếp campaign theo trạng thái, tiến độ, deadline.
+- Mở chi tiết campaign để xem submission và duyệt/từ chối submission.
 
-Neu demo tao campaign:
+Nếu demo tạo campaign:
 
-1. Chon "Tao campaign".
-2. Nhap thong tin campaign.
-3. Dat so luong response muc tieu.
-4. Tao campaign va mo QR thanh toan.
-5. Gui URL bien lai de Admin xac minh.
+1. Chọn "Tạo campaign".
+2. Nhập thông tin campaign.
+3. Đặt số lượng response mục tiêu.
+4. Tạo campaign và mở QR thanh toán.
+5. Gửi URL biên lai để Admin xác minh.
 
-### Buoc 3: Demo Admin
+### Bước 3: Demo Admin
 
-Dang xuat va dang nhap bang tai khoan `Admin`.
+Đăng xuất và đăng nhập bằng tài khoản `Admin`.
 
-Can demo:
+Cần demo:
 
-- Admin thay dashboard quan tri.
-- Khu vuc tong quan hien thi:
-  - Tong tien da xac minh.
-  - Phi nen tang.
-  - Thanh toan cho xac minh.
-  - Campaign cho duyet.
-  - Withdrawal cho xu ly.
-- Tab "Thanh toan":
-  - Xem bien lai.
-  - Xac minh thanh toan.
-  - Tu choi thanh toan neu khong hop le.
+- Admin thấy dashboard quản trị.
+- Khu vực tổng quan hiển thị theo các cột dữ liệu:
+  - Thanh toán.
+  - Campaign.
+  - Rút tiền.
+  - Doanh thu.
+- Tab "Thanh toán":
+  - Xem biên lai.
+  - Xác minh thanh toán.
+  - Từ chối thanh toán nếu không hợp lệ.
 - Tab "Campaign":
-  - Xem campaign cho duyet.
-  - Duyet campaign de dua len marketplace.
-  - Tu choi campaign va nhap ly do.
-- Tab "Rut tien":
-  - Duyet yeu cau rut tien.
-  - Danh dau da chuyen tien.
-  - Tu choi yeu cau neu sai thong tin.
+  - Xem campaign chờ duyệt.
+  - Duyệt campaign để đưa lên marketplace.
+  - Từ chối campaign và nhập lý do.
+- Tab "Rút tiền":
+  - Duyệt yêu cầu rút tiền.
+  - Đánh dấu đã chuyển tiền.
+  - Từ chối yêu cầu nếu sai thông tin.
 
-### Buoc 4: Demo Collaborator
+### Bước 4: Demo Collaborator
 
-Dang xuat va dang nhap bang tai khoan `Collaborator`.
+Đăng xuất và đăng nhập bằng tài khoản `Collaborator`.
 
-Can demo:
+Cần demo:
 
-- Collaborator vao marketplace.
-- Marketplace hien thi campaign da thanh toan, con han va con slot.
-- Co the tim kiem, loc theo danh muc, sap xep theo:
-  - Gan het han truoc.
-  - Thuong cao truoc.
-  - Nhieu slot truoc.
-  - Moi nhat.
-- Chon mot campaign va bam "Nhan campaign".
-- Mo trang lam khao sat, nop ma xac nhan/bang chung/ghi chu.
+- Collaborator vào marketplace.
+- Marketplace hiển thị campaign đã thanh toán, còn hạn và còn slot.
+- Có thể tìm kiếm, lọc theo danh mục, sắp xếp theo:
+  - Gần hết hạn trước.
+  - Thưởng cao trước.
+  - Nhiều slot trước.
+  - Mới nhất.
+- Chọn một campaign và bấm "Nhận campaign".
+- Mở trang làm khảo sát, nộp mã xác nhận/bằng chứng/ghi chú.
 
-Sau do mo trang "Cong viec & vi":
+Sau đó mở trang "Công việc & ví":
 
-- Xem campaign da nhan.
-- Loc cong viec theo trang thai.
-- Xem giao dich vi.
-- Tao yeu cau rut tien.
+- Xem campaign đã nhận.
+- Lọc công việc theo trạng thái.
+- Xem giao dịch ví.
+- Tạo yêu cầu rút tiền.
 
-### Buoc 5: Ket luan luong end-to-end
+### Bước 5: Kết luận luồng end-to-end
 
-Tom tat lai luong hoan chinh:
+Tóm tắt lại luồng hoàn chỉnh:
 
-1. Customer tao campaign va thanh toan.
-2. Admin xac minh thanh toan va duyet campaign.
-3. Collaborator nhan campaign tren marketplace.
-4. Collaborator lam khao sat va nop submission.
-5. Customer duyet submission.
-6. Collaborator nhan thuong vao vi.
-7. Collaborator gui yeu cau rut tien.
-8. Admin xu ly rut tien.
+1. Customer tạo campaign và thanh toán.
+2. Admin xác minh thanh toán và duyệt campaign.
+3. Collaborator nhận campaign trên marketplace.
+4. Collaborator làm khảo sát và nộp submission.
+5. Customer duyệt submission.
+6. Collaborator nhận thưởng vào ví.
+7. Collaborator gửi yêu cầu rút tiền.
+8. Admin xử lý rút tiền.
 
-## 6. Checklist truoc khi thuyet trinh
+## 6. Checklist trước khi thuyết trình
 
-- Backend dang chay.
-- Frontend dang chay.
-- Dang nhap duoc 3 role.
-- Co du lieu campaign mau.
-- Co it nhat 1 payment dang cho xac minh.
-- Co it nhat 1 campaign dang ACTIVE.
-- Co it nhat 1 submission dang cho Customer duyet.
-- Co it nhat 1 withdrawal dang cho Admin xu ly.
-- Giao dien tieng Viet khong bi loi font/encoding.
-- Khong de console hien loi nghiem trong.
+- Backend đang chạy.
+- Frontend đang chạy.
+- Đăng nhập được 3 role.
+- Có dữ liệu campaign mẫu.
+- Có ít nhất 1 payment đang chờ xác minh.
+- Có ít nhất 1 campaign đang ACTIVE.
+- Có ít nhất 1 submission đang chờ Customer duyệt.
+- Có ít nhất 1 withdrawal đang chờ Admin xử lý.
+- Giao diện tiếng Việt không bị lỗi font/encoding.
+- Không để console hiện lỗi nghiêm trọng.
 
-## 7. Cau tra loi goi y khi bi hoi
+## 7. Câu trả lời gợi ý khi bị hỏi
 
-### Vi sao can 3 role?
+### Vì sao cần 3 role?
 
-Vi he thong co 3 nhom nguoi dung voi trach nhiem khac nhau: Customer tao nhu cau khao sat, Collaborator thuc hien khao sat, Admin kiem soat thanh toan va van hanh.
+Vì hệ thống có 3 nhóm người dùng với trách nhiệm khác nhau: Customer tạo nhu cầu khảo sát, Collaborator thực hiện khảo sát, Admin kiểm soát thanh toán và vận hành.
 
-### He thong co phan quyen khong?
+### Hệ thống có phân quyền không?
 
-Co. Sau khi dang nhap, frontend doc role cua nguoi dung va dieu huong vao dashboard phu hop. Cac route quan trong duoc bao ve theo role.
+Có. Sau khi đăng nhập, frontend đọc role của người dùng và điều hướng vào dashboard phù hợp. Các route quan trọng được bảo vệ theo role.
 
-### Customer theo doi tien do khao sat nhu the nao?
+### Customer theo dõi tiến độ khảo sát như thế nào?
 
-Customer dashboard tinh tien do dua tren `approvedResponses / targetResponses`. He thong hien so response da duyet, tong response muc tieu va so response con thieu de dat 100%.
+Customer dashboard tính tiến độ dựa trên `approvedResponses / targetResponses`. Hệ thống hiện số response đã duyệt, tổng response mục tiêu và số response còn thiếu để đạt 100%.
 
-### Admin co vai tro gi?
+### Admin có vai trò gì?
 
-Admin dam bao campaign hop le truoc khi hien thi cho Collaborator. Admin xac minh thanh toan, duyet campaign va xu ly rut tien.
+Admin đảm bảo campaign hợp lệ trước khi hiển thị cho Collaborator. Admin xác minh thanh toán, duyệt campaign và xử lý rút tiền.
 
-### Collaborator nhan tien bang cach nao?
+### Collaborator nhận tiền bằng cách nào?
 
-Sau khi submission duoc duyet, tien thuong duoc ghi nhan vao vi. Collaborator co the gui yeu cau rut tien va Admin xu ly yeu cau do.
+Sau khi submission được duyệt, tiền thưởng được ghi nhận vào ví. Collaborator có thể gửi yêu cầu rút tiền và Admin xử lý yêu cầu đó.
 
-## 8. Huong phat trien tiep theo
+## 8. Hướng phát triển tiếp theo
 
-Neu co them thoi gian, co the phat trien:
+Nếu có thêm thời gian, có thể phát triển:
 
-- Thong bao realtime khi campaign/submission/payment thay doi trang thai.
-- Upload anh bien lai thay vi nhap URL.
-- Bao cao thong ke nang cao cho Customer va Admin.
-- Phan trang va loc du lieu o backend cho danh sach lon.
-- Email notification khi campaign duoc duyet hoac submission duoc chap nhan.
-- Tich hop Google OAuth neu can dang nhap nhanh.
+- Thông báo realtime khi campaign/submission/payment thay đổi trạng thái.
+- Upload ảnh biên lai thay vì nhập URL.
+- Báo cáo thống kê nâng cao cho Customer và Admin.
+- Phân trang và lọc dữ liệu ở backend cho danh sách lớn.
+- Email notification khi campaign được duyệt hoặc submission được chấp nhận.
+- Tích hợp Google OAuth nếu cần đăng nhập nhanh.
