@@ -1,5 +1,5 @@
 import { apiRequest } from "./httpClient";
-import type { AdminRevenueSummary, Campaign, CampaignPayment, PagedResponse, UserProfile, Withdrawal } from "./types";
+import type { AdminRevenueSummary, Campaign, CampaignPayment, CollaboratorAccount, PagedResponse, UserProfile, Withdrawal } from "./types";
 
 export const adminApi = {
   pendingCampaigns: () => apiRequest<Campaign[]>("/survey/api/admin/campaigns/pending"),
@@ -28,6 +28,10 @@ export const adminApi = {
 
   users: (pageIndex = 1, pageSize = 100) =>
     apiRequest<PagedResponse<UserProfile>>(`/user/api/user/paging?pageIndex=${pageIndex}&pageSize=${pageSize}`),
+  collaborators: (pageIndex = 1, pageSize = 20, search = "") =>
+    apiRequest<PagedResponse<CollaboratorAccount>>(`/user/api/admin/collaborators?pageIndex=${pageIndex}&pageSize=${pageSize}${search ? `&search=${encodeURIComponent(search)}` : ""}`),
+  collaborator: (id: number) =>
+    apiRequest<CollaboratorAccount>(`/user/api/admin/collaborators/${id}`),
   topup: (userId: number, amount: number, description?: string) =>
     apiRequest(`/wallet/api/admin/wallets/${userId}/topup`, { method: "POST", bodyJson: { amount, description } }),
 };

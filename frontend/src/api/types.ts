@@ -182,6 +182,22 @@ export interface UserProfile {
   roleName?: BackendRole | string | null;
 }
 
+export interface CollaboratorAccount {
+  userId: number;
+  userName: string;
+  email: string;
+  fullName?: string | null;
+  phoneNumber?: string | null;
+  sex?: string | null;
+  identityCard?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  avatarUrl?: string | null;
+  roleName: "Collaborator" | string;
+  authProvider: "Password" | "Google" | string;
+  profileCompletionPercent: number;
+}
+
 export interface PagedResponse<T> {
   items: T[];
   totalRecords: number;
