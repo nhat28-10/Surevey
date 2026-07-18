@@ -74,8 +74,8 @@ Set on every service:
 ASPNETCORE_ENVIRONMENT=Production
 ENABLE_SWAGGER=true
 Jwt__Key=replace-with-long-secret-at-least-32-characters
-Jwt__Issuer=SureSurvey
-Jwt__Audience=SureSurvey
+Jwt__Issuer=SureVey
+Jwt__Audience=SureVey
 InternalService__ApiKey=replace-with-internal-api-key
 Cors__AllowedOrigins__0=http://localhost:3000
 Cors__AllowedOrigins__1=https://replace-frontend-domain

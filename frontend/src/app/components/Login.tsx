@@ -38,7 +38,7 @@ export function Login() {
           <div className="flex h-full flex-col justify-between">
             <div>
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-slate-950"><ClipboardList className="h-7 w-7" /></div>
-              <h1 className="mt-8 text-3xl font-bold">Đăng nhập SureSurvey</h1>
+              <h1 className="mt-8 text-3xl font-bold">Đăng nhập SureVey</h1>
               <p className="mt-3 leading-7 text-slate-300">Một tài khoản, ba dashboard khác nhau theo role: Customer, Collaborator và Admin.</p>
             </div>
             <div className="grid gap-3 text-sm text-slate-300">

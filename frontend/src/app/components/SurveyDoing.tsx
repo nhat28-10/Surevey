@@ -147,7 +147,7 @@ export function SurveyDoing() {
       <Card className="border-slate-200 bg-white shadow-sm">
         <CardHeader>
           <CardTitle>{isInternalForm ? "Trả lời form nội bộ" : "Nộp kết quả Google Form"}</CardTitle>
-          <CardDescription>{isInternalForm ? "Trả lời trực tiếp trong SureSurvey, không cần confirmation code." : "Nhập email đã dùng trong Google Form để Customer đối chiếu response."}</CardDescription>
+          <CardDescription>{isInternalForm ? "Trả lời trực tiếp trong SureVey, không cần confirmation code." : "Nhập email đã dùng trong Google Form để Customer đối chiếu response."}</CardDescription>
         </CardHeader>
         <CardContent>
           {alreadySubmitted ? <Alert><AlertDescription>Participation đã ở trạng thái {statusText(participation.status)}; backend không cho tạo thêm submission pending/approved.</AlertDescription></Alert> : <form onSubmit={submit} className="space-y-4">

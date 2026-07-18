@@ -72,7 +72,7 @@ export function PostSurvey() {
         title: form.title.trim(),
         description: form.description.trim(),
         instruction: isGoogleForm
-          ? instruction || "Hoàn thành Google Form, sau đó quay lại SureSurvey và nhập email đã dùng trong form."
+          ? instruction || "Hoàn thành Google Form, sau đó quay lại SureVey và nhập email đã dùng trong form."
           : instruction,
         campaignType: form.campaignType,
         googleFormUrl: isGoogleForm ? form.googleFormUrl.trim() : undefined,
@@ -110,7 +110,7 @@ export function PostSurvey() {
           step="01"
           icon={<ClipboardList className="h-5 w-5" />}
           title="Chọn loại campaign"
-          description="Google Form phù hợp khi đã có form ngoài; Form nội bộ phù hợp demo luồng trả lời ngay trong SureSurvey."
+          description="Google Form phù hợp khi đã có form ngoài; Form nội bộ phù hợp demo luồng trả lời ngay trong SureVey."
         >
           <RadioGroup value={form.campaignType} onValueChange={value => set("campaignType", value as CampaignFormType)}>
             <div className="grid gap-3 md:grid-cols-2">
@@ -125,7 +125,7 @@ export function PostSurvey() {
                 <RadioGroupItem value="INTERNAL_FORM" id="internal-form" className="mt-1" />
                 <span>
                   <strong>Form nội bộ</strong>
-                  <span className="mt-1 block text-sm leading-6 text-slate-600">Người làm trả lời trực tiếp trong SureSurvey, không cần confirmation code.</span>
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">Người làm trả lời trực tiếp trong SureVey, không cần confirmation code.</span>
                 </span>
               </label>
             </div>

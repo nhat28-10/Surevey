@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Input } from "./ui/input";
 import { Progress } from "./ui/progress";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CheckCircle2, ClipboardList, CreditCard, LayoutDashboard, RefreshCw, Search, UserRound, Users, WalletCards } from "lucide-react";
+import { CheckCircle2, ClipboardList, Clock, CreditCard, Download, LayoutDashboard, RefreshCw, Search, UserRound, Users, WalletCards } from "lucide-react";
 import { AdminDashboardSkeleton } from "./LoadingStates";
 import { EmptyState } from "./EmptyState";
+import { exportToXlsx } from "../utils/exportXlsx";
 
 type AdminSection = "overview" | "payments" | "campaigns" | "withdrawals" | "revenue" | "collaborators";
 
@@ -171,6 +172,10 @@ export function AdminProcessRequests() {
 
       <div className="min-w-0 space-y-5">
         {activeSection === "overview" && <AdminOverviewColumns
+          payments={payments}
+          campaigns={campaigns}
+          withdrawals={withdrawals}
+          collaborators={collaborators}
           totalPaidAmount={revenue?.totalPaidAmount || 0}
           platformFeeAmount={revenue?.totalPlatformFeeAmount || 0}
           pendingPayments={pendingPayments}
@@ -285,18 +290,35 @@ function PaymentPanel({
   const pending = allPayments.filter(payment => payment.status === "PENDING_VERIFY").length;
   const paid = allPayments.filter(payment => payment.status === "PAID").length;
   const rejected = allPayments.filter(payment => payment.status === "REJECTED").length;
+  const exportPayments = () => exportToXlsx("admin-payments", "Payments", payments.map(payment => ({
+    "Mã thanh toán": payment.paymentCode,
+    "Campaign ID": payment.campaignId,
+    "Customer ID": payment.customerId,
+    "Trạng thái": paymentStatusText(payment.status),
+    "Tổng thanh toán": payment.totalAmount,
+    "Ngân sách thưởng": payment.rewardBudget,
+    "Phí nền tảng": payment.platformFeeAmount,
+    "Ngân hàng": payment.bankName,
+    "Nội dung chuyển khoản": payment.transferContent,
+    "Ngày tạo": new Date(payment.createdAt).toLocaleString("vi-VN"),
+  })));
 
   return <section className="space-y-3">
     <PaymentStatusChart pending={pending} paid={paid} rejected={rejected} />
 
     <SectionToolbar title="Danh sách thanh toán" description="Theo dõi biên lai, trạng thái và thao tác đồng bộ campaign.">
-      <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
-        <option value="ALL">Tất cả thanh toán</option>
-        <option value="PENDING_VERIFY">Chờ xác minh</option>
-        <option value="PAID">Đã thanh toán</option>
-        <option value="REJECTED">Bị từ chối</option>
-        <option value="CANCELLED">Đã hủy</option>
-      </select>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
+          <option value="ALL">Tất cả thanh toán</option>
+          <option value="PENDING_VERIFY">Chờ xác minh</option>
+          <option value="PAID">Đã thanh toán</option>
+          <option value="REJECTED">Bị từ chối</option>
+          <option value="CANCELLED">Đã hủy</option>
+        </select>
+        <Button type="button" variant="outline" className="border-slate-300 font-semibold text-slate-900 hover:bg-slate-100" disabled={payments.length === 0} onClick={exportPayments}>
+          <Download className="mr-2 h-4 w-4" />Xuất Excel
+        </Button>
+      </div>
     </SectionToolbar>
 
     {payments.length === 0 ? <Empty text="Không có thanh toán phù hợp." /> : payments.map(payment => <Card key={payment.id} className="overflow-hidden border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
@@ -355,11 +377,27 @@ function CampaignPanel({
 }) {
   const pendingResponses = campaigns.reduce((sum, campaign) => sum + campaign.targetResponses, 0);
   const pendingBudget = campaigns.reduce((sum, campaign) => sum + campaign.totalAmount, 0);
+  const exportCampaigns = () => exportToXlsx("admin-campaigns", "Campaigns", campaigns.map(campaign => ({
+    "Campaign ID": campaign.id,
+    "Customer ID": campaign.customerId,
+    "Tiêu đề": campaign.title,
+    "Trạng thái": campaignStatusText(campaign.status),
+    "Danh mục": campaign.category,
+    "Response mục tiêu": campaign.targetResponses,
+    "Response đã duyệt": campaign.approvedResponses,
+    "Thưởng mỗi response": campaign.rewardPerResponse,
+    "Tổng ngân sách": campaign.totalAmount,
+    "Hạn chót": new Date(campaign.deadline).toLocaleString("vi-VN"),
+  })));
 
   return <section className="space-y-3">
     <CampaignReviewChart pendingCampaigns={campaigns.length} pendingResponses={pendingResponses} pendingBudget={pendingBudget} />
 
-    <SectionToolbar title="Campaign chờ duyệt" description="Kiểm tra nội dung, ngân sách và mục tiêu phản hồi trước khi đưa lên marketplace." />
+    <SectionToolbar title="Campaign chờ duyệt" description="Kiểm tra nội dung, ngân sách và mục tiêu phản hồi trước khi đưa lên marketplace.">
+      <Button type="button" variant="outline" className="border-slate-300 font-semibold text-slate-900 hover:bg-slate-100" disabled={campaigns.length === 0} onClick={exportCampaigns}>
+        <Download className="mr-2 h-4 w-4" />Xuất Excel
+      </Button>
+    </SectionToolbar>
 
     {campaigns.length === 0 ? <Empty text="Không có campaign chờ duyệt." /> : campaigns.map(campaign => <Card key={campaign.id} className="overflow-hidden border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
       <CardContent className="p-0">
@@ -421,18 +459,34 @@ function WithdrawalPanel({
   const pendingAmount = allWithdrawals
     .filter(withdrawal => withdrawal.status === "PENDING" || withdrawal.status === "APPROVED")
     .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+  const exportWithdrawals = () => exportToXlsx("admin-withdrawals", "Withdrawals", withdrawals.map(withdrawal => ({
+    "Yêu cầu ID": withdrawal.id,
+    "Collaborator ID": withdrawal.collaboratorId,
+    "Số tiền": withdrawal.amount,
+    "Trạng thái": withdrawalStatusText(withdrawal.status),
+    "Ngân hàng": withdrawal.bankName,
+    "Chủ tài khoản": withdrawal.bankAccountName,
+    "Số tài khoản": withdrawal.bankAccountNumber,
+    "Ngày yêu cầu": new Date(withdrawal.requestedAt).toLocaleString("vi-VN"),
+    "Lý do từ chối": withdrawal.rejectReason || "",
+  })));
 
   return <section className="space-y-3">
     <WithdrawalStatusChart pending={pending} approved={approved} pendingAmount={pendingAmount} />
 
     <SectionToolbar title="Yêu cầu rút tiền" description="Duyệt thông tin ngân hàng và đánh dấu trạng thái chuyển tiền.">
-      <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
-        <option value="ALL">Tất cả yêu cầu</option>
-        <option value="PENDING">Chờ duyệt</option>
-        <option value="APPROVED">Đã duyệt, chờ trả</option>
-        <option value="PAID">Đã trả</option>
-        <option value="REJECTED">Bị từ chối</option>
-      </select>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
+          <option value="ALL">Tất cả yêu cầu</option>
+          <option value="PENDING">Chờ duyệt</option>
+          <option value="APPROVED">Đã duyệt, chờ trả</option>
+          <option value="PAID">Đã trả</option>
+          <option value="REJECTED">Bị từ chối</option>
+        </select>
+        <Button type="button" variant="outline" className="border-slate-300 font-semibold text-slate-900 hover:bg-slate-100" disabled={withdrawals.length === 0} onClick={exportWithdrawals}>
+          <Download className="mr-2 h-4 w-4" />Xuất Excel
+        </Button>
+      </div>
     </SectionToolbar>
 
     {withdrawals.length === 0 ? <Empty text="Không có yêu cầu rút tiền phù hợp." /> : withdrawals.map(withdrawal => <Card key={withdrawal.id} className="overflow-hidden border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
@@ -488,12 +542,29 @@ function CollaboratorPanel({
 }) {
   const googleAccounts = collaborators.filter(item => item.authProvider === "Google").length;
   const completeProfiles = collaborators.filter(item => item.profileCompletionPercent >= 80).length;
+  const exportCollaborators = () => exportToXlsx("admin-collaborators", "Collaborators", collaborators.map(collaborator => ({
+    "User ID": collaborator.userId,
+    "Tên đăng nhập": collaborator.userName,
+    "Họ tên": collaborator.fullName || "",
+    "Email": collaborator.email,
+    "Số điện thoại": collaborator.phoneNumber || "",
+    "Nguồn đăng nhập": collaborator.authProvider,
+    "Hoàn thiện hồ sơ (%)": collaborator.profileCompletionPercent,
+    "CCCD": collaborator.identityCard || "",
+    "Giới tính": collaborator.sex || "",
+    "Địa chỉ": collaborator.address || "",
+  })));
 
   return <section className="space-y-4">
     <SectionToolbar title="Quản lý Collaborator" description="Tìm kiếm và kiểm tra hồ sơ tài khoản người làm khảo sát.">
-      <div className="relative min-w-[260px]">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-        <Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm tên, email, số điện thoại" className="pl-9" />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative min-w-[260px]">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+          <Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm tên, email, số điện thoại" className="pl-9" />
+        </div>
+        <Button type="button" variant="outline" className="border-slate-300 font-semibold text-slate-900 hover:bg-slate-100" disabled={collaborators.length === 0} onClick={exportCollaborators}>
+          <Download className="mr-2 h-4 w-4" />Xuất Excel
+        </Button>
       </div>
     </SectionToolbar>
 
@@ -601,6 +672,10 @@ function RevenuePanel({
 }
 
 function AdminOverviewColumns({
+  payments,
+  campaigns,
+  withdrawals,
+  collaborators,
   totalPaidAmount,
   platformFeeAmount,
   pendingPayments,
@@ -613,6 +688,10 @@ function AdminOverviewColumns({
   approvedWithdrawals,
   pendingWithdrawalAmount,
 }: {
+  payments: CampaignPayment[];
+  campaigns: Campaign[];
+  withdrawals: Withdrawal[];
+  collaborators: CollaboratorAccount[];
   totalPaidAmount: number;
   platformFeeAmount: number;
   pendingPayments: number;
@@ -625,6 +704,33 @@ function AdminOverviewColumns({
   approvedWithdrawals: number;
   pendingWithdrawalAmount: number;
 }) {
+  const timelineItems = [
+    ...payments.slice(0, 3).map(payment => ({
+      title: `Payment ${paymentStatusText(payment.status)}`,
+      description: `${payment.paymentCode} - ${money(payment.totalAmount)}`,
+      time: payment.updatedAt,
+      tone: payment.status === "PAID" ? "green" as const : payment.status === "REJECTED" ? "red" as const : "amber" as const,
+    })),
+    ...campaigns.slice(0, 3).map(campaign => ({
+      title: `Campaign ${campaignStatusText(campaign.status)}`,
+      description: campaign.title,
+      time: campaign.updatedAt,
+      tone: "blue" as const,
+    })),
+    ...withdrawals.slice(0, 3).map(withdrawal => ({
+      title: `Rút tiền ${withdrawalStatusText(withdrawal.status)}`,
+      description: `Collaborator #${withdrawal.collaboratorId} - ${money(withdrawal.amount)}`,
+      time: withdrawal.reviewedAt || withdrawal.requestedAt,
+      tone: withdrawal.status === "PAID" ? "green" as const : withdrawal.status === "REJECTED" ? "red" as const : "amber" as const,
+    })),
+    ...collaborators.slice(0, 2).map(collaborator => ({
+      title: "Collaborator trong hệ thống",
+      description: collaborator.fullName || collaborator.email,
+      time: new Date().toISOString(),
+      tone: "slate" as const,
+    })),
+  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
+
   return <div className="space-y-4">
     <SectionToolbar title="Tổng quan vận hành" description="Các chỉ số nhanh để Admin biết mục nào cần xử lý trước." />
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -646,6 +752,7 @@ function AdminOverviewColumns({
         <OverviewNote label="Luồng xử lý" value="Theo từng sidebar" description="Mỗi mục có chart và danh sách riêng." />
       </CardContent>
     </Card>
+    <AdminTimeline items={timelineItems} />
   </div>;
 }
 
@@ -746,6 +853,54 @@ function OverviewNote({ label, value, description }: { label: string; value: str
     <div className="mt-1 text-xl font-bold text-slate-950">{value}</div>
     <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
   </div>;
+}
+
+function AdminTimeline({ items }: { items: Array<{ title: string; description: string; time: string; tone: "slate" | "blue" | "amber" | "green" | "red" }> }) {
+  if (items.length === 0) {
+    return <EmptyState compact icon={<ActivityIcon />} title="Chưa có nhật ký vận hành" description="Khi có thanh toán, campaign hoặc yêu cầu rút tiền mới, timeline sẽ hiển thị tại đây." />;
+  }
+
+  return <Card className="border-slate-200 bg-white shadow-sm">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-lg">
+        <ActivityIcon />
+        Nhật ký vận hành gần đây
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      {items.map((item, index) => <AdminTimelineItem key={`${item.title}-${item.time}-${index}`} item={item} last={index === items.length - 1} />)}
+    </CardContent>
+  </Card>;
+}
+
+function AdminTimelineItem({ item, last }: { item: { title: string; description: string; time: string; tone: "slate" | "blue" | "amber" | "green" | "red" }; last: boolean }) {
+  const dotClass = item.tone === "green"
+    ? "bg-green-600"
+    : item.tone === "amber"
+      ? "bg-amber-500"
+      : item.tone === "red"
+        ? "bg-red-600"
+        : item.tone === "blue"
+          ? "bg-blue-600"
+          : "bg-slate-700";
+
+  return <div className="grid grid-cols-[20px_1fr] gap-3">
+    <div className="flex flex-col items-center">
+      <span className={`mt-1 h-3 w-3 rounded-full ${dotClass}`} />
+      {!last && <span className="mt-1 h-full w-px bg-slate-200" />}
+    </div>
+    <div className={`pb-4 ${last ? "pb-0" : ""}`}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold text-slate-950">{item.title}</div>
+        <div className="text-xs text-slate-500">{new Date(item.time).toLocaleString("vi-VN")}</div>
+      </div>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
+    </div>
+  </div>;
+}
+
+function ActivityIcon() {
+  return <Clock className="h-5 w-5 text-slate-700" />;
 }
 
 function SectionToolbar({ title, description, children }: { title: string; description: string; children?: ReactNode }) {

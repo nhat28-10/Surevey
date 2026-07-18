@@ -10,9 +10,10 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Progress } from "./ui/progress";
-import { ArrowLeft, CheckCircle2, Clock, ExternalLink, FileCheck2, FileText, RefreshCw, Target, Users, WalletCards, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Download, ExternalLink, FileCheck2, FileText, RefreshCw, Target, Users, WalletCards, XCircle } from "lucide-react";
 import { DetailSkeleton } from "./LoadingStates";
 import { EmptyState } from "./EmptyState";
+import { exportToXlsx } from "../utils/exportXlsx";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Chờ thanh toán",
@@ -136,6 +137,49 @@ export function SurveyDetail() {
   const progress = campaign.targetResponses ? Math.min(100, campaign.approvedResponses / campaign.targetResponses * 100) : 0;
   const remainingResponses = Math.max(campaign.targetResponses - campaign.approvedResponses, 0);
   const isGoogleForm = campaign.campaignType === "GOOGLE_FORM";
+  const rewardBudget = campaign.rewardBudget || campaign.targetResponses * campaign.rewardPerResponse;
+  const spentReward = campaign.approvedResponses * campaign.rewardPerResponse;
+  const remainingReward = Math.max(rewardBudget - spentReward, 0);
+  const exportSubmissions = () => exportToXlsx(`campaign-${campaign.id}-submissions`, "Submissions", submissions.map(submission => ({
+    "Submission ID": submission.id,
+    "Collaborator ID": submission.collaboratorId,
+    "Trạng thái": submissionLabels[submission.status] || submission.status,
+    "Email đối chiếu": submission.contactEmail || "",
+    "Số điện thoại": submission.contactPhone || "",
+    "Mã xác nhận": submission.confirmationCode || "",
+    "Ghi chú": submission.note || "",
+    "Lý do từ chối": submission.rejectReason || "",
+    "Ngày nộp": new Date(submission.createdAt).toLocaleString("vi-VN"),
+    "Cập nhật": new Date(submission.updatedAt).toLocaleString("vi-VN"),
+  })));
+  const timelineItems = [
+    {
+      title: "Campaign được tạo",
+      description: `Customer tạo campaign với mục tiêu ${campaign.targetResponses.toLocaleString("vi-VN")} response.`,
+      time: campaign.createdAt,
+      tone: "slate" as const,
+    },
+    {
+      title: paymentLabels[campaign.paymentStatus] || campaign.paymentStatus,
+      description: campaign.paymentStatus === "PAID"
+        ? "Thanh toán đã được xác minh, campaign đủ điều kiện hiển thị khi được duyệt."
+        : "Campaign cần hoàn tất thanh toán hoặc chờ Admin xác minh.",
+      time: campaign.updatedAt,
+      tone: campaign.paymentStatus === "PAID" ? "green" as const : "amber" as const,
+    },
+    {
+      title: `${submissions.length.toLocaleString("vi-VN")} submission đã nộp`,
+      description: `${counts.pending} chờ duyệt, ${counts.approved} đã duyệt, ${counts.rejected} bị từ chối.`,
+      time: submissions[0]?.createdAt || campaign.updatedAt,
+      tone: "blue" as const,
+    },
+    {
+      title: "Cập nhật gần nhất",
+      description: `${campaign.approvedResponses}/${campaign.targetResponses} response đã được duyệt.`,
+      time: campaign.updatedAt,
+      tone: remainingResponses === 0 && campaign.targetResponses > 0 ? "green" as const : "slate" as const,
+    },
+  ];
 
   return <div className="space-y-6">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -193,7 +237,7 @@ export function SurveyDetail() {
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
             {isGoogleForm
               ? "Google Form: duyệt submission bằng cách đối chiếu email collaborator nhập với response trong Google Form. Mã xác nhận chỉ dùng nếu Customer tự cung cấp thêm."
-              : "Form nội bộ: collaborator trả lời trực tiếp trong SureSurvey, hệ thống lưu câu trả lời ở phần ghi chú submission."}
+              : "Form nội bộ: collaborator trả lời trực tiếp trong SureVey, hệ thống lưu câu trả lời ở phần ghi chú submission."}
           </div>
         </div>
 
@@ -215,9 +259,31 @@ export function SurveyDetail() {
     <Card className="border-slate-200 bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
-          <FileCheck2 className="h-5 w-5 text-slate-700" />
-          Submission cần kiểm tra
+          <WalletCards className="h-5 w-5 text-slate-700" />
+          Báo cáo mini campaign
         </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ReportMetric label="Ngân sách thưởng" value={money(rewardBudget)} />
+        <ReportMetric label="Đã dùng cho response duyệt" value={money(spentReward)} />
+        <ReportMetric label="Còn lại dự kiến" value={money(remainingReward)} />
+        <ReportMetric label="Tổng thanh toán" value={money(campaign.totalAmount)} />
+      </CardContent>
+    </Card>
+
+    <TimelineCard title="Nhật ký hoạt động campaign" items={timelineItems} />
+
+    <Card className="border-slate-200 bg-white shadow-sm">
+      <CardHeader>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileCheck2 className="h-5 w-5 text-slate-700" />
+            Submission cần kiểm tra
+          </CardTitle>
+          <Button type="button" variant="outline" className="w-fit border-slate-300 font-semibold text-slate-900 hover:bg-slate-100" disabled={submissions.length === 0} onClick={exportSubmissions}>
+            <Download className="mr-2 h-4 w-4" />Xuất Excel
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {submissions.length === 0 ? <EmptyState
@@ -250,6 +316,51 @@ function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: n
     <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm text-slate-500">{icon}{label}</CardTitle></CardHeader>
     <CardContent className="text-2xl font-bold text-slate-950">{value}</CardContent>
   </Card>;
+}
+
+function ReportMetric({ label, value }: { label: string; value: number | string }) {
+  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+    <div className="mt-2 text-lg font-bold text-slate-950">{value}</div>
+  </div>;
+}
+
+function TimelineCard({ title, items }: { title: string; items: Array<{ title: string; description: string; time: string; tone: "slate" | "green" | "amber" | "blue" }> }) {
+  return <Card className="border-slate-200 bg-white shadow-sm">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-lg">
+        <Clock className="h-5 w-5 text-slate-700" />
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-0">
+      {items.map((item, index) => <TimelineItem key={`${item.title}-${index}`} item={item} last={index === items.length - 1} />)}
+    </CardContent>
+  </Card>;
+}
+
+function TimelineItem({ item, last }: { item: { title: string; description: string; time: string; tone: "slate" | "green" | "amber" | "blue" }; last: boolean }) {
+  const dotClass = item.tone === "green"
+    ? "bg-green-600"
+    : item.tone === "amber"
+      ? "bg-amber-500"
+      : item.tone === "blue"
+        ? "bg-blue-600"
+        : "bg-slate-700";
+
+  return <div className="grid grid-cols-[20px_1fr] gap-3">
+    <div className="flex flex-col items-center">
+      <span className={`mt-1 h-3 w-3 rounded-full ${dotClass}`} />
+      {!last && <span className="mt-1 h-full w-px bg-slate-200" />}
+    </div>
+    <div className={`pb-4 ${last ? "pb-0" : ""}`}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold text-slate-950">{item.title}</div>
+        <div className="text-xs text-slate-500">{new Date(item.time).toLocaleString("vi-VN")}</div>
+      </div>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
+    </div>
+  </div>;
 }
 
 function SubmissionCard({

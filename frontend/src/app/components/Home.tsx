@@ -20,7 +20,7 @@ export function Home() {
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white shadow-sm">
       <div className="grid gap-8 p-6 md:p-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
         <div className="space-y-6">
-          <Badge variant="outline" className="w-fit rounded-full border-slate-700 bg-slate-900 px-3 py-1 text-slate-200">SureSurvey</Badge>
+          <Badge variant="outline" className="w-fit rounded-full border-slate-700 bg-slate-900 px-3 py-1 text-slate-200">SureVey</Badge>
           <div className="space-y-4">
             <h1 className="max-w-3xl text-4xl font-bold leading-tight md:text-5xl">Nền tảng quản lý campaign khảo sát theo vai trò</h1>
             <p className="max-w-3xl text-lg leading-8 text-slate-300">Customer tạo và thanh toán campaign; Admin xác minh, duyệt và theo dõi doanh thu; Collaborator nhận việc, nộp kết quả, nhận thưởng và rút tiền.</p>

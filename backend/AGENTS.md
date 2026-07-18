@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This repository is for the SureSurvey MVP backend, built with ASP.NET Core/.NET and PostgreSQL.
+This repository is for the SureVey MVP backend, built with ASP.NET Core/.NET and PostgreSQL.
 
 The project should be developed as a modular monolith, not as real microservices. Keep one backend application, but organize code by modules/services.
 

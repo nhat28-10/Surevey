@@ -80,6 +80,54 @@ export function HelperFinishedSurveys() {
     .slice()
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5), [participations]);
+  const workTimeline = useMemo(() => participations
+    .flatMap(participation => {
+      const title = participation.campaign?.title || `Campaign #${participation.campaignId}`;
+      const items = [
+        {
+          title: "Đã nhận campaign",
+          description: title,
+          time: participation.acceptedAt,
+          tone: "blue" as const,
+        },
+      ];
+
+      if (participation.submittedAt) {
+        items.push({
+          title: "Đã nộp kết quả",
+          description: "Submission đã được gửi cho Customer kiểm tra.",
+          time: participation.submittedAt,
+          tone: "amber" as const,
+        });
+      }
+
+      if (participation.status === "APPROVED") {
+        items.push({
+          title: "Đã duyệt thưởng",
+          description: "Kết quả được duyệt, reward sẽ ghi nhận qua ví.",
+          time: participation.updatedAt,
+          tone: "green" as const,
+        });
+      } else if (participation.status === "REJECTED") {
+        items.push({
+          title: "Bị từ chối",
+          description: "Kết quả cần kiểm tra lại theo phản hồi của Customer.",
+          time: participation.updatedAt,
+          tone: "red" as const,
+        });
+      } else if (participation.status === "SUBMITTED") {
+        items.push({
+          title: "Chờ Customer duyệt",
+          description: "Kết quả đang chờ Customer kiểm tra.",
+          time: participation.updatedAt,
+          tone: "amber" as const,
+        });
+      }
+
+      return items;
+    })
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 6), [participations]);
 
   const withdraw = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -114,6 +162,8 @@ export function HelperFinishedSurveys() {
     </div>
 
     <RecentWorkActivity participations={recentActivities} />
+
+    <WorkTimeline items={workTimeline} />
 
     <Tabs defaultValue="work" className="space-y-5">
       <TabsList className="h-12 rounded-lg bg-slate-900 p-1 text-slate-200 shadow-sm"><TabsTrigger className="rounded-md px-5 py-2 text-sm font-semibold text-slate-200 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-sm" value="work">Campaign đã nhận</TabsTrigger><TabsTrigger className="rounded-md px-5 py-2 text-sm font-semibold text-slate-200 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-sm" value="transactions">Giao dịch</TabsTrigger><TabsTrigger className="rounded-md px-5 py-2 text-sm font-semibold text-slate-200 data-[state=active]:bg-white data-[state=active]:text-slate-950 data-[state=active]:shadow-sm" value="withdraw">Rút tiền</TabsTrigger></TabsList>
@@ -226,4 +276,44 @@ function RecentWorkActivity({ participations }: { participations: Participation[
       </div>)}
     </CardContent>
   </Card>;
+}
+
+function WorkTimeline({ items }: { items: Array<{ title: string; description: string; time: string; tone: "blue" | "amber" | "green" | "red" }> }) {
+  if (items.length === 0) return null;
+
+  return <Card className="border-slate-200 bg-white shadow-sm">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-lg">
+        <Activity className="h-5 w-5 text-slate-700" />
+        Nhật ký công việc
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      {items.map((item, index) => <WorkTimelineItem key={`${item.title}-${item.time}-${index}`} item={item} last={index === items.length - 1} />)}
+    </CardContent>
+  </Card>;
+}
+
+function WorkTimelineItem({ item, last }: { item: { title: string; description: string; time: string; tone: "blue" | "amber" | "green" | "red" }; last: boolean }) {
+  const dotClass = item.tone === "green"
+    ? "bg-green-600"
+    : item.tone === "amber"
+      ? "bg-amber-500"
+      : item.tone === "red"
+        ? "bg-red-600"
+        : "bg-blue-600";
+
+  return <div className="grid grid-cols-[20px_1fr] gap-3">
+    <div className="flex flex-col items-center">
+      <span className={`mt-1 h-3 w-3 rounded-full ${dotClass}`} />
+      {!last && <span className="mt-1 h-full w-px bg-slate-200" />}
+    </div>
+    <div className={`pb-4 ${last ? "pb-0" : ""}`}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold text-slate-950">{item.title}</div>
+        <div className="text-xs text-slate-500">{new Date(item.time).toLocaleString("vi-VN")}</div>
+      </div>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
+    </div>
+  </div>;
 }

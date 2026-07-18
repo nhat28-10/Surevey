@@ -1,4 +1,4 @@
-# SureSurvey Testing Guide
+# SureVey Testing Guide
 
 Use the ApiGateway Swagger UI unless debugging an individual service:
 
