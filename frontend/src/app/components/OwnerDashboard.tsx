@@ -464,7 +464,7 @@ function PaymentQrPreview({ qrImageUrl }: { qrImageUrl?: string | null }) {
     <div className="h-60 w-60 overflow-hidden rounded-lg border bg-white shadow-sm">
       <img
         src={qrImageUrl}
-        alt="QR thanh toán SureSurvey"
+        alt="QR thanh toán SureVey"
         className="h-full w-full scale-[1.24] object-cover [object-position:center_41%]"
       />
     </div>

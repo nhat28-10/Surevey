@@ -15,6 +15,7 @@ import { SurveyDetail } from "./components/SurveyDetail";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Profile } from "./components/Profile";
 import { Dashboard } from "./components/Dashboard";
+import { NotificationsPage } from "./components/NotificationsPage";
 
 export const router = createBrowserRouter([{
   path: "/",
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([{
     { path: "collaborator/activities", element: <ProtectedRoute roles={["Collaborator"]}><HelperFinishedSurveys /></ProtectedRoute> },
     { path: "admin", element: <ProtectedRoute roles={["Admin"]}><AdminProcessRequests /></ProtectedRoute> },
     { path: "profile", element: <ProtectedRoute><Profile /></ProtectedRoute> },
+    { path: "notifications", element: <ProtectedRoute><NotificationsPage /></ProtectedRoute> },
     { path: "support/faq", Component: FAQ },
 
     { path: "owner/dashboard", element: <Navigate to="/customer/dashboard" replace /> },

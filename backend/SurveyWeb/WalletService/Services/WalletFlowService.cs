@@ -838,7 +838,7 @@ public class WalletFlowService : IWalletFlowService
 
     private static string BuildTransferContent(string paymentCode)
     {
-        return $"SURESURVEY {paymentCode}";
+        return $"SUREVEY {paymentCode}";
     }
 
     private string BuildQrImageUrl(string bankName, string bankAccountName, string bankAccountNumber, decimal amount, string transferContent)
@@ -851,7 +851,7 @@ public class WalletFlowService : IWalletFlowService
 
         var qrText = string.Join("\n", new[]
         {
-            "SURESURVEY PAYMENT",
+            "SUREVEY PAYMENT",
             $"Bank: {bankName}",
             $"AccountName: {bankAccountName}",
             $"AccountNumber: {bankAccountNumber}",

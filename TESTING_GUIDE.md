@@ -1,4 +1,4 @@
-# SureSurvey Backend Testing Guide
+# SureVey Backend Testing Guide
 
 ## 1. Services
 
@@ -18,17 +18,17 @@ WalletService:
 
 Admin:
 
-- Email: admin@suresurvey.local
+- Email: admin@surevey.local
 - Password: Admin@123
 
 Customer:
 
-- Email: customer@suresurvey.local
+- Email: customer@surevey.local
 - Password: Customer@123
 
 Collaborator:
 
-- Email: collaborator@suresurvey.local
+- Email: collaborator@surevey.local
 - Password: Collaborator@123
 
 ## 3. Main Test Flow

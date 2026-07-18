@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the recommended coding phases for the SureSurvey MVP backend.
+This document defines the recommended coding phases for the SureVey MVP backend.
 
 The project should be developed step by step based on the core demo flow:
 

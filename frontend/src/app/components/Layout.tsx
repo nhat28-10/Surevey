@@ -1,9 +1,10 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { ClipboardList, Home, PlusCircle, Search, HelpCircle, LogOut, UserCircle, CheckCircle, ShieldCheck } from "lucide-react";
+import { Bell, ClipboardList, Home, PlusCircle, Search, HelpCircle, LogOut, UserCircle, CheckCircle, ShieldCheck } from "lucide-react";
 import { getCurrentUser, logout } from "../services/authService";
 import { useEffect, useState } from "react";
+import { NotificationBell } from "./NotificationBell";
 
 export function Layout() {
   const location = useLocation();
@@ -62,6 +63,7 @@ export function Layout() {
 
           <div className="ml-auto flex items-center gap-3">
             {currentUser ? <>
+              <NotificationBell user={currentUser} />
               <Link to="/profile" className="hidden lg:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
                 <UserCircle className="w-5 h-5" /><span>{currentUser.name}</span>
                 <Badge variant="outline">{currentUser.role}</Badge>
@@ -78,6 +80,7 @@ export function Layout() {
           {currentUser.role === "Customer" && <><Link to="/customer/dashboard" className={navClass("/customer/dashboard")}>Campaign</Link><Link to="/customer/post" className={navClass("/customer/post")}>Tạo mới</Link></>}
           {currentUser.role === "Collaborator" && <><Link to="/collaborator/marketplace" className={navClass("/collaborator/marketplace")}>Marketplace</Link><Link to="/collaborator/activities" className={navClass("/collaborator/activities")}>Công việc & ví</Link></>}
           {currentUser.role === "Admin" && <Link to="/admin" className={navClass("/admin")}>Quản trị</Link>}
+          <Link to="/notifications" className={navClass("/notifications")}><Bell className="w-4 h-4" />Thông báo</Link>
           <Link to="/profile" className={navClass("/profile")}>Hồ sơ</Link>
         </nav>}
       </header>
