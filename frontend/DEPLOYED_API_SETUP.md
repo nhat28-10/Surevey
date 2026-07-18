@@ -24,3 +24,26 @@ Examples:
 
 For browser access, each Render service must include the frontend origin in its
 `Cors__AllowedOrigins__*` environment variables.
+
+## Render static site SPA refresh
+
+Because the frontend uses React Router with browser URLs, Render must rewrite
+all non-file paths back to `index.html`. Otherwise refreshing paths such as
+`/admin`, `/customer/dashboard`, or `/collaborator/marketplace` returns
+`Not Found`.
+
+If the frontend is managed by `render.yaml`, keep this route:
+
+```yaml
+routes:
+  - type: rewrite
+    source: /*
+    destination: /index.html
+```
+
+If the frontend was created manually in the Render Dashboard, add the same rule
+under **Redirects/Rewrites**:
+
+- Source Path: `/*`
+- Destination Path: `/index.html`
+- Action: `Rewrite`

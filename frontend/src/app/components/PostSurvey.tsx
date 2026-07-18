@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { campaignApi } from "../../api/campaignApi";
@@ -10,8 +10,14 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Alert, AlertDescription } from "./ui/alert";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Badge } from "./ui/badge";
+import { CalendarClock, ClipboardList, CreditCard, FileText, Link2, Target, WalletCards } from "lucide-react";
 
 type CampaignFormType = "GOOGLE_FORM" | "INTERNAL_FORM";
+
+function money(value: number) {
+  return `${value.toLocaleString("vi-VN")} đ`;
+}
 
 export function PostSurvey() {
   const navigate = useNavigate();
@@ -31,12 +37,16 @@ export function PostSurvey() {
 
   const set = (name: string, value: string) => setForm(prev => ({ ...prev, [name]: value }));
   const isGoogleForm = form.campaignType === "GOOGLE_FORM";
+  const reward = Number(form.rewardPerResponse || 0);
+  const target = Number(form.targetResponses || 0);
+  const rewardBudget = reward * target;
+  const platformFee = Math.round(rewardBudget * 0.2);
+  const estimatedTotal = rewardBudget + platformFee;
+  const questionCount = useMemo(() => form.instruction.split(/\r?\n/).map(item => item.trim()).filter(Boolean).length, [form.instruction]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
-    const reward = Number(form.rewardPerResponse);
-    const target = Number(form.targetResponses);
     const instruction = form.instruction.trim();
 
     if (isGoogleForm && !form.googleFormUrl.startsWith("http://") && !form.googleFormUrl.startsWith("https://")) {
@@ -83,56 +93,132 @@ export function PostSurvey() {
     }
   };
 
-  return <div className="max-w-3xl mx-auto">
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl">Tạo campaign khảo sát</CardTitle>
-        <CardDescription>Chọn Google Form nếu dùng form ngoài, hoặc Form nội bộ nếu muốn người làm trả lời ngay trong SureSurvey.</CardDescription>
-      </CardHeader>
-      <CardContent><form onSubmit={submit} className="space-y-5">
+  return <div className="space-y-6">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-950">Tạo campaign khảo sát</h1>
+        <p className="mt-1 max-w-2xl text-slate-600">Đi theo 3 bước: chọn loại khảo sát, nhập nội dung, rồi xác định ngân sách và thời hạn.</p>
+      </div>
+      <Button variant="outline" onClick={() => navigate("/customer/dashboard")} className="w-fit border-slate-300 font-semibold text-slate-900 hover:bg-slate-100">Quay lại dashboard</Button>
+    </div>
+
+    <form onSubmit={submit} className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <div className="space-y-5">
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
-        <div className="space-y-3">
-          <Label>Loại campaign</Label>
+        <StepCard
+          step="01"
+          icon={<ClipboardList className="h-5 w-5" />}
+          title="Chọn loại campaign"
+          description="Google Form phù hợp khi đã có form ngoài; Form nội bộ phù hợp demo luồng trả lời ngay trong SureSurvey."
+        >
           <RadioGroup value={form.campaignType} onValueChange={value => set("campaignType", value as CampaignFormType)}>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <label htmlFor="google-form" className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer">
+            <div className="grid gap-3 md:grid-cols-2">
+              <label htmlFor="google-form" className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${isGoogleForm ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300"}`}>
                 <RadioGroupItem value="GOOGLE_FORM" id="google-form" className="mt-1" />
-                <span><strong>Google Form</strong><span className="block text-sm text-gray-600 mt-1">Người làm mở link ngoài, sau đó nộp email đã dùng trong form để Customer đối chiếu.</span></span>
+                <span>
+                  <strong>Google Form</strong>
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">Người làm mở link ngoài, sau đó nộp email đã dùng trong form để Customer đối chiếu.</span>
+                </span>
               </label>
-              <label htmlFor="internal-form" className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer">
+              <label htmlFor="internal-form" className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition ${!isGoogleForm ? "border-slate-900 bg-slate-50" : "border-slate-200 hover:border-slate-300"}`}>
                 <RadioGroupItem value="INTERNAL_FORM" id="internal-form" className="mt-1" />
-                <span><strong>Form nội bộ</strong><span className="block text-sm text-gray-600 mt-1">Người làm trả lời trực tiếp trong SureSurvey, không cần confirmation code.</span></span>
+                <span>
+                  <strong>Form nội bộ</strong>
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">Người làm trả lời trực tiếp trong SureSurvey, không cần confirmation code.</span>
+                </span>
               </label>
             </div>
           </RadioGroup>
-        </div>
+        </StepCard>
 
-        <div className="space-y-2"><Label htmlFor="title">Tiêu đề *</Label><Input id="title" value={form.title} onChange={e => set("title", e.target.value)} required maxLength={200} /></div>
-        <div className="space-y-2"><Label htmlFor="description">Mô tả *</Label><Textarea id="description" value={form.description} onChange={e => set("description", e.target.value)} required maxLength={2000} rows={4} /></div>
-        <div className="space-y-2">
-          <Label htmlFor="instruction">{isGoogleForm ? "Hướng dẫn" : "Câu hỏi form nội bộ *"}</Label>
-          <Textarea
-            id="instruction"
-            value={form.instruction}
-            onChange={e => set("instruction", e.target.value)}
-            maxLength={2000}
-            rows={isGoogleForm ? 3 : 6}
-            placeholder={isGoogleForm ? "Ví dụ: nhập email trong Google Form để Customer đối chiếu." : "Mỗi dòng là một câu hỏi, ví dụ:\nBạn đang học ngành gì?\nBạn dùng sản phẩm này bao lâu rồi?"}
-            required={!isGoogleForm}
-          />
-        </div>
-        {isGoogleForm && <div className="space-y-2"><Label htmlFor="url">Google Form *</Label><Input id="url" type="url" placeholder="https://forms.gle/..." value={form.googleFormUrl} onChange={e => set("googleFormUrl", e.target.value)} required /></div>}
+        <StepCard
+          step="02"
+          icon={<FileText className="h-5 w-5" />}
+          title="Nội dung khảo sát"
+          description="Tiêu đề và mô tả càng rõ thì collaborator càng dễ hiểu yêu cầu trước khi nhận campaign."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2"><Label htmlFor="title">Tiêu đề *</Label><Input id="title" value={form.title} onChange={event => set("title", event.target.value)} required maxLength={200} placeholder="Ví dụ: Khảo sát thói quen mua sắm online" /></div>
+            <div className="space-y-2 md:col-span-2"><Label htmlFor="description">Mô tả *</Label><Textarea id="description" value={form.description} onChange={event => set("description", event.target.value)} required maxLength={2000} rows={4} placeholder="Mô tả đối tượng cần khảo sát, thời gian dự kiến và yêu cầu chính." /></div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="instruction">{isGoogleForm ? "Hướng dẫn" : "Câu hỏi form nội bộ *"}</Label>
+              <Textarea
+                id="instruction"
+                value={form.instruction}
+                onChange={event => set("instruction", event.target.value)}
+                maxLength={2000}
+                rows={isGoogleForm ? 3 : 6}
+                placeholder={isGoogleForm ? "Ví dụ: nhập email trong Google Form để Customer đối chiếu." : "Mỗi dòng là một câu hỏi, ví dụ:\nBạn đang học ngành gì?\nBạn dùng sản phẩm này bao lâu rồi?"}
+                required={!isGoogleForm}
+              />
+            </div>
+            {isGoogleForm && <div className="space-y-2 md:col-span-2"><Label htmlFor="url">Google Form *</Label><Input id="url" type="url" placeholder="https://forms.gle/..." value={form.googleFormUrl} onChange={event => set("googleFormUrl", event.target.value)} required /></div>}
+          </div>
+        </StepCard>
 
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label htmlFor="reward">Thưởng mỗi phản hồi (đ) *</Label><Input id="reward" type="number" min="1" step="100" value={form.rewardPerResponse} onChange={e => set("rewardPerResponse", e.target.value)} required /></div>
-          <div className="space-y-2"><Label htmlFor="target">Mục tiêu phản hồi *</Label><Input id="target" type="number" min="1" value={form.targetResponses} onChange={e => set("targetResponses", e.target.value)} required /></div>
-          <div className="space-y-2"><Label htmlFor="deadline">Hạn chót *</Label><Input id="deadline" type="datetime-local" value={form.deadline} onChange={e => set("deadline", e.target.value)} required /></div>
-          <div className="space-y-2"><Label htmlFor="category">Danh mục *</Label><Input id="category" value={form.category} onChange={e => set("category", e.target.value)} required maxLength={100} /></div>
+        <StepCard
+          step="03"
+          icon={<CreditCard className="h-5 w-5" />}
+          title="Ngân sách và thời hạn"
+          description="Số response mục tiêu sẽ được dùng để theo dõi tiến độ hoàn thành sau khi campaign được thanh toán."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="reward">Thưởng mỗi phản hồi (đ) *</Label><Input id="reward" type="number" min="1" step="100" value={form.rewardPerResponse} onChange={event => set("rewardPerResponse", event.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="target">Mục tiêu phản hồi *</Label><Input id="target" type="number" min="1" value={form.targetResponses} onChange={event => set("targetResponses", event.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="deadline">Hạn chót *</Label><Input id="deadline" type="datetime-local" value={form.deadline} onChange={event => set("deadline", event.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="category">Danh mục *</Label><Input id="category" value={form.category} onChange={event => set("category", event.target.value)} required maxLength={100} /></div>
+          </div>
+        </StepCard>
+      </div>
+
+      <aside className="space-y-4 xl:sticky xl:top-24 xl:h-fit">
+        <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          <CardHeader className="border-b border-slate-200 bg-slate-950 text-white">
+            <CardTitle className="flex items-center gap-2 text-lg text-white"><WalletCards className="h-5 w-5" />Preview campaign</CardTitle>
+            <CardDescription className="text-slate-300">Tóm tắt trước khi tạo campaign.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Tiêu đề</div>
+              <div className="mt-1 font-semibold text-slate-950">{form.title.trim() || "Chưa nhập tiêu đề"}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1">{isGoogleForm ? "Google Form" : "Form nội bộ"}</Badge>
+              <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-3 py-1">{form.category || "Khác"}</Badge>
+            </div>
+            <PreviewLine icon={<Target className="h-4 w-4" />} label="Response mục tiêu" value={target || 0} />
+            <PreviewLine icon={<WalletCards className="h-4 w-4" />} label="Ngân sách thưởng" value={money(rewardBudget)} />
+            <PreviewLine icon={<CreditCard className="h-4 w-4" />} label="Phí nền tảng dự kiến" value={money(platformFee)} />
+            <PreviewLine icon={<CalendarClock className="h-4 w-4" />} label="Tổng thanh toán dự kiến" value={money(estimatedTotal)} emphasize />
+            <PreviewLine icon={<Link2 className="h-4 w-4" />} label={isGoogleForm ? "Link form" : "Số câu hỏi"} value={isGoogleForm ? (form.googleFormUrl ? "Đã nhập" : "Chưa nhập") : questionCount} />
+            <Button type="submit" disabled={submitting} className="w-full bg-slate-900 text-white hover:bg-slate-800">{submitting ? "Đang tạo..." : "Tạo campaign"}</Button>
+          </CardContent>
+        </Card>
+      </aside>
+    </form>
+  </div>;
+}
+
+function StepCard({ step, icon, title, description, children }: { step: string; icon: React.ReactNode; title: string; description: string; children: React.ReactNode }) {
+  return <Card className="border-slate-200 bg-white shadow-sm">
+    <CardHeader className="border-b border-slate-100">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-900 text-white">{icon}</div>
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bước {step}</div>
+          <CardTitle className="mt-1 text-lg text-slate-950">{title}</CardTitle>
+          <CardDescription className="mt-1">{description}</CardDescription>
         </div>
-        <div className="rounded-lg bg-gray-50 p-4 text-sm">Ngân sách thưởng: <strong>{(Number(form.rewardPerResponse || 0) * Number(form.targetResponses || 0)).toLocaleString("vi-VN")} đ</strong>. Phí nền tảng 20% sẽ được tính ở bước thanh toán.</div>
-        <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => navigate("/customer/dashboard")}>Hủy</Button><Button type="submit" disabled={submitting} className="bg-green-600 hover:bg-green-700">{submitting ? "Đang tạo..." : "Tạo campaign"}</Button></div>
-      </form></CardContent>
-    </Card>
+      </div>
+    </CardHeader>
+    <CardContent className="p-5">{children}</CardContent>
+  </Card>;
+}
+
+function PreviewLine({ icon, label, value, emphasize = false }: { icon: React.ReactNode; label: string; value: number | string; emphasize?: boolean }) {
+  return <div className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${emphasize ? "border-slate-300 bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-900"}`}>
+    <div className={`flex items-center gap-2 text-sm ${emphasize ? "text-slate-200" : "text-slate-500"}`}>{icon}{label}</div>
+    <div className="font-bold">{value}</div>
   </div>;
 }
