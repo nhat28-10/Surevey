@@ -14,7 +14,7 @@ import { CheckCircle2, ClipboardList, CreditCard, LayoutDashboard, RefreshCw, Se
 import { AdminDashboardSkeleton } from "./LoadingStates";
 import { EmptyState } from "./EmptyState";
 
-type AdminSection = "overview" | "payments" | "campaigns" | "withdrawals" | "collaborators";
+type AdminSection = "overview" | "payments" | "campaigns" | "withdrawals" | "revenue" | "collaborators";
 
 function text(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể xử lý yêu cầu";
@@ -164,6 +164,7 @@ export function AdminProcessRequests() {
           payments: pendingPayments,
           campaigns: campaigns.length,
           withdrawals: pendingWithdrawals + approvedWithdrawals,
+          revenue: revenue?.totalPlatformFeeAmount || 0,
           collaborators: collaboratorTotal,
         }}
       />
@@ -185,6 +186,7 @@ export function AdminProcessRequests() {
 
         {activeSection === "payments" && <PaymentPanel
           payments={visiblePayments}
+          allPayments={payments}
           filter={paymentFilter}
           setFilter={setPaymentFilter}
           busy={busy}
@@ -199,10 +201,16 @@ export function AdminProcessRequests() {
 
         {activeSection === "withdrawals" && <WithdrawalPanel
           withdrawals={visibleWithdrawals}
+          allWithdrawals={withdrawals}
           filter={withdrawalFilter}
           setFilter={setWithdrawalFilter}
           busy={busy}
           onRun={run}
+        />}
+
+        {activeSection === "revenue" && <RevenuePanel
+          revenue={revenue}
+          pendingWithdrawalAmount={pendingWithdrawalAmount}
         />}
 
         {activeSection === "collaborators" && <CollaboratorPanel
@@ -223,13 +231,14 @@ function AdminSidebar({
 }: {
   active: AdminSection;
   onChange: (section: AdminSection) => void;
-  counts: { payments: number; campaigns: number; withdrawals: number; collaborators: number };
+  counts: { payments: number; campaigns: number; withdrawals: number; revenue: number; collaborators: number };
 }) {
-  const items: Array<{ key: AdminSection; label: string; description: string; icon: ReactNode; count?: number }> = [
-    { key: "overview", label: "Tổng quan", description: "Biểu đồ vận hành", icon: <LayoutDashboard className="h-4 w-4" /> },
+  const items: Array<{ key: AdminSection; label: string; description: string; icon: ReactNode; count?: number | string }> = [
+    { key: "overview", label: "Tổng quan", description: "KPI nhanh", icon: <LayoutDashboard className="h-4 w-4" /> },
     { key: "payments", label: "Thanh toán", description: "Biên lai cần xác minh", icon: <CreditCard className="h-4 w-4" />, count: counts.payments },
     { key: "campaigns", label: "Campaign", description: "Nội dung chờ duyệt", icon: <ClipboardList className="h-4 w-4" />, count: counts.campaigns },
     { key: "withdrawals", label: "Rút tiền", description: "Yêu cầu từ collaborator", icon: <WalletCards className="h-4 w-4" />, count: counts.withdrawals },
+    { key: "revenue", label: "Doanh thu", description: "Phí nền tảng", icon: <CheckCircle2 className="h-4 w-4" />, count: compactNumber(counts.revenue) },
     { key: "collaborators", label: "Collaborator", description: "Tài khoản người làm", icon: <Users className="h-4 w-4" />, count: counts.collaborators },
   ];
 
@@ -249,7 +258,7 @@ function AdminSidebar({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-sm font-semibold">{item.icon}{item.label}</span>
-            {typeof item.count === "number" && <span className={`rounded-full px-2 py-0.5 text-xs ${selected ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"}`}>{item.count}</span>}
+            {item.count !== undefined && <span className={`rounded-full px-2 py-0.5 text-xs ${selected ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"}`}>{item.count}</span>}
           </div>
           <div className={`mt-1 text-xs ${selected ? "text-slate-300" : "text-slate-500"}`}>{item.description}</div>
         </button>;
@@ -260,18 +269,26 @@ function AdminSidebar({
 
 function PaymentPanel({
   payments,
+  allPayments,
   filter,
   setFilter,
   busy,
   onRun,
 }: {
   payments: CampaignPayment[];
+  allPayments: CampaignPayment[];
   filter: string;
   setFilter: (value: string) => void;
   busy: string;
   onRun: (key: string, action: () => Promise<unknown>, success: string) => void;
 }) {
+  const pending = allPayments.filter(payment => payment.status === "PENDING_VERIFY").length;
+  const paid = allPayments.filter(payment => payment.status === "PAID").length;
+  const rejected = allPayments.filter(payment => payment.status === "REJECTED").length;
+
   return <section className="space-y-3">
+    <PaymentStatusChart pending={pending} paid={paid} rejected={rejected} />
+
     <SectionToolbar title="Danh sách thanh toán" description="Theo dõi biên lai, trạng thái và thao tác đồng bộ campaign.">
       <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
         <option value="ALL">Tất cả thanh toán</option>
@@ -336,7 +353,12 @@ function CampaignPanel({
   busy: string;
   onRun: (key: string, action: () => Promise<unknown>, success: string) => void;
 }) {
+  const pendingResponses = campaigns.reduce((sum, campaign) => sum + campaign.targetResponses, 0);
+  const pendingBudget = campaigns.reduce((sum, campaign) => sum + campaign.totalAmount, 0);
+
   return <section className="space-y-3">
+    <CampaignReviewChart pendingCampaigns={campaigns.length} pendingResponses={pendingResponses} pendingBudget={pendingBudget} />
+
     <SectionToolbar title="Campaign chờ duyệt" description="Kiểm tra nội dung, ngân sách và mục tiêu phản hồi trước khi đưa lên marketplace." />
 
     {campaigns.length === 0 ? <Empty text="Không có campaign chờ duyệt." /> : campaigns.map(campaign => <Card key={campaign.id} className="overflow-hidden border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
@@ -381,18 +403,28 @@ function CampaignPanel({
 
 function WithdrawalPanel({
   withdrawals,
+  allWithdrawals,
   filter,
   setFilter,
   busy,
   onRun,
 }: {
   withdrawals: Withdrawal[];
+  allWithdrawals: Withdrawal[];
   filter: string;
   setFilter: (value: string) => void;
   busy: string;
   onRun: (key: string, action: () => Promise<unknown>, success: string) => void;
 }) {
+  const pending = allWithdrawals.filter(withdrawal => withdrawal.status === "PENDING").length;
+  const approved = allWithdrawals.filter(withdrawal => withdrawal.status === "APPROVED").length;
+  const pendingAmount = allWithdrawals
+    .filter(withdrawal => withdrawal.status === "PENDING" || withdrawal.status === "APPROVED")
+    .reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+
   return <section className="space-y-3">
+    <WithdrawalStatusChart pending={pending} approved={approved} pendingAmount={pendingAmount} />
+
     <SectionToolbar title="Yêu cầu rút tiền" description="Duyệt thông tin ngân hàng và đánh dấu trạng thái chuyển tiền.">
       <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
         <option value="ALL">Tất cả yêu cầu</option>
@@ -530,6 +562,44 @@ function CollaboratorPanel({
   </section>;
 }
 
+function RevenuePanel({
+  revenue,
+  pendingWithdrawalAmount,
+}: {
+  revenue: AdminRevenueSummary | null;
+  pendingWithdrawalAmount: number;
+}) {
+  const totalPaidAmount = revenue?.totalPaidAmount || 0;
+  const platformFeeAmount = revenue?.totalPlatformFeeAmount || 0;
+  const rewardBudget = revenue?.totalRewardBudget || 0;
+  const paidPaymentCount = revenue?.paidPaymentCount || 0;
+  const feeRate = totalPaidAmount > 0 ? Math.round(platformFeeAmount / totalPaidAmount * 100) : 0;
+
+  return <section className="space-y-4">
+    <RevenueChart
+      totalPaidAmount={totalPaidAmount}
+      platformFeeAmount={platformFeeAmount}
+      rewardBudget={rewardBudget}
+      pendingWithdrawalAmount={pendingWithdrawalAmount}
+    />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <SmallStat label="Tổng tiền đã xác minh" value={money(totalPaidAmount)} />
+      <SmallStat label="Phí nền tảng" value={money(platformFeeAmount)} />
+      <SmallStat label="Ngân sách thưởng" value={money(rewardBudget)} />
+      <SmallStat label="Payment đã thanh toán" value={paidPaymentCount} />
+    </div>
+    <Card className="border-slate-200 bg-white shadow-sm">
+      <CardContent className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="font-semibold text-slate-950">Tỷ lệ phí thực tế</div>
+          <p className="text-sm text-slate-500">Tính theo phí nền tảng trên tổng tiền đã xác minh.</p>
+        </div>
+        <div className="text-3xl font-bold text-slate-950">{feeRate}%</div>
+      </CardContent>
+    </Card>
+  </section>;
+}
+
 function AdminOverviewColumns({
   totalPaidAmount,
   platformFeeAmount,
@@ -555,27 +625,38 @@ function AdminOverviewColumns({
   approvedWithdrawals: number;
   pendingWithdrawalAmount: number;
 }) {
+  return <div className="space-y-4">
+    <SectionToolbar title="Tổng quan vận hành" description="Các chỉ số nhanh để Admin biết mục nào cần xử lý trước." />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <SmallStat label="Thanh toán chờ xác minh" value={pendingPayments} />
+      <SmallStat label="Campaign chờ duyệt" value={pendingCampaigns} />
+      <SmallStat label="Yêu cầu rút cần xử lý" value={pendingWithdrawals + approvedWithdrawals} />
+      <SmallStat label="Phí nền tảng" value={money(platformFeeAmount)} />
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <SmallStat label="Payment đã xác minh" value={paidPayments} />
+      <SmallStat label="Payment bị từ chối" value={rejectedPayments} />
+      <SmallStat label="Response chờ duyệt" value={pendingCampaignResponses.toLocaleString("vi-VN")} />
+      <SmallStat label="Tiền cần rút" value={money(pendingWithdrawalAmount)} />
+    </div>
+    <Card className="border-slate-200 bg-white shadow-sm">
+      <CardContent className="grid gap-4 py-5 md:grid-cols-3">
+        <OverviewNote label="Doanh thu xác minh" value={money(totalPaidAmount)} description="Xem chi tiết ở mục Doanh thu." />
+        <OverviewNote label="Ngân sách campaign chờ duyệt" value={money(pendingCampaignBudget)} description="Xem chart ở mục Campaign." />
+        <OverviewNote label="Luồng xử lý" value="Theo từng sidebar" description="Mỗi mục có chart và danh sách riêng." />
+      </CardContent>
+    </Card>
+  </div>;
+}
+
+function PaymentStatusChart({ pending, paid, rejected }: { pending: number; paid: number; rejected: number }) {
   const paymentData = [
-    { name: "Chờ xác minh", value: pendingPayments, color: "#f59e0b" },
-    { name: "Đã xác minh", value: paidPayments, color: "#16a34a" },
-    { name: "Bị từ chối", value: rejectedPayments, color: "#dc2626" },
-  ];
-  const campaignData = [
-    { name: "Campaign", value: pendingCampaigns },
-    { name: "Response", value: pendingCampaignResponses },
-  ];
-  const withdrawalData = [
-    { name: "Chờ duyệt", value: pendingWithdrawals, color: "#f97316" },
-    { name: "Chờ trả", value: approvedWithdrawals, color: "#2563eb" },
-  ].filter(item => item.value > 0);
-  const revenueData = [
-    { name: "Đã xác minh", value: totalPaidAmount },
-    { name: "Phí nền tảng", value: platformFeeAmount },
-    { name: "Cần rút", value: pendingWithdrawalAmount },
+    { name: "Chờ xác minh", value: pending, color: "#f59e0b" },
+    { name: "Đã xác minh", value: paid, color: "#16a34a" },
+    { name: "Bị từ chối", value: rejected, color: "#dc2626" },
   ];
 
-  return <div className="grid gap-4 xl:grid-cols-2">
-    <ChartCard icon={<WalletCards className="h-5 w-5 text-green-700" />} title="Trạng thái thanh toán" description="So sánh số payment theo trạng thái xử lý.">
+  return <ChartCard icon={<WalletCards className="h-5 w-5 text-green-700" />} title="Trạng thái thanh toán" description="So sánh số payment theo trạng thái xử lý.">
       <ResponsiveContainer width="100%" height={230}>
         <BarChart data={paymentData} margin={{ top: 10, right: 12, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -587,9 +668,16 @@ function AdminOverviewColumns({
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </ChartCard>
+    </ChartCard>;
+}
 
-    <ChartCard icon={<ClipboardList className="h-5 w-5 text-blue-700" />} title="Campaign chờ duyệt" description={`Tổng giá trị chờ duyệt: ${money(pendingCampaignBudget)}.`}>
+function CampaignReviewChart({ pendingCampaigns, pendingResponses, pendingBudget }: { pendingCampaigns: number; pendingResponses: number; pendingBudget: number }) {
+  const campaignData = [
+    { name: "Campaign", value: pendingCampaigns },
+    { name: "Response", value: pendingResponses },
+  ];
+
+  return <ChartCard icon={<ClipboardList className="h-5 w-5 text-blue-700" />} title="Campaign chờ duyệt" description={`Tổng giá trị chờ duyệt: ${money(pendingBudget)}.`}>
       <ResponsiveContainer width="100%" height={230}>
         <BarChart data={campaignData} layout="vertical" margin={{ top: 10, right: 24, left: 20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -599,9 +687,16 @@ function AdminOverviewColumns({
           <Bar dataKey="value" fill="#2563eb" radius={[0, 6, 6, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </ChartCard>
+    </ChartCard>;
+}
 
-    <ChartCard icon={<CheckCircle2 className="h-5 w-5 text-orange-700" />} title="Yêu cầu rút tiền" description={`Tổng tiền cần xử lý: ${money(pendingWithdrawalAmount)}.`}>
+function WithdrawalStatusChart({ pending, approved, pendingAmount }: { pending: number; approved: number; pendingAmount: number }) {
+  const withdrawalData = [
+    { name: "Chờ duyệt", value: pending, color: "#f97316" },
+    { name: "Chờ trả", value: approved, color: "#2563eb" },
+  ].filter(item => item.value > 0);
+
+  return <ChartCard icon={<CheckCircle2 className="h-5 w-5 text-orange-700" />} title="Yêu cầu rút tiền" description={`Tổng tiền cần xử lý: ${money(pendingAmount)}.`}>
       {withdrawalData.length > 0 ? <ResponsiveContainer width="100%" height={230}>
         <PieChart>
           <Pie data={withdrawalData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={86} paddingAngle={3}>
@@ -611,9 +706,28 @@ function AdminOverviewColumns({
         </PieChart>
       </ResponsiveContainer> : <EmptyChartLabel text="Chưa có yêu cầu rút tiền" />}
       {withdrawalData.length > 0 && <ChartLegend items={withdrawalData} />}
-    </ChartCard>
+    </ChartCard>;
+}
 
-    <ChartCard icon={<CreditCard className="h-5 w-5 text-slate-700" />} title="Doanh thu & phí" description={`Tỷ lệ phí thực tế: ${totalPaidAmount > 0 ? Math.round(platformFeeAmount / totalPaidAmount * 100) : 0}%.`}>
+function RevenueChart({
+  totalPaidAmount,
+  platformFeeAmount,
+  rewardBudget,
+  pendingWithdrawalAmount,
+}: {
+  totalPaidAmount: number;
+  platformFeeAmount: number;
+  rewardBudget: number;
+  pendingWithdrawalAmount: number;
+}) {
+  const revenueData = [
+    { name: "Đã xác minh", value: totalPaidAmount },
+    { name: "Ngân sách thưởng", value: rewardBudget },
+    { name: "Phí nền tảng", value: platformFeeAmount },
+    { name: "Cần rút", value: pendingWithdrawalAmount },
+  ];
+
+  return <ChartCard icon={<CreditCard className="h-5 w-5 text-slate-700" />} title="Doanh thu & phí" description={`Tỷ lệ phí thực tế: ${totalPaidAmount > 0 ? Math.round(platformFeeAmount / totalPaidAmount * 100) : 0}%.`}>
       <ResponsiveContainer width="100%" height={230}>
         <BarChart data={revenueData} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -623,7 +737,14 @@ function AdminOverviewColumns({
           <Bar dataKey="value" fill="#0f766e" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-    </ChartCard>
+    </ChartCard>;
+}
+
+function OverviewNote({ label, value, description }: { label: string; value: string; description: string }) {
+  return <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <div className="text-sm text-slate-500">{label}</div>
+    <div className="mt-1 text-xl font-bold text-slate-950">{value}</div>
+    <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
   </div>;
 }
 
