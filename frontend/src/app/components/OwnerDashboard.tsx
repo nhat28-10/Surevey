@@ -461,7 +461,7 @@ function PaymentQrPreview({ qrImageUrl }: { qrImageUrl?: string | null }) {
       <img
         src={qrImageUrl}
         alt="QR thanh toán SureVey"
-        className="h-full w-full scale-[1.24] object-cover [object-position:center_41%]"
+        className="h-full w-full object-contain p-2"
       />
     </div>
     <a href={qrImageUrl} target="_blank" rel="noreferrer" className="block text-center text-xs text-blue-600 underline">Mở ảnh QR gốc</a>

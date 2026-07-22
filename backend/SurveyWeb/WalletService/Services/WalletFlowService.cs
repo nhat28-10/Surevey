@@ -277,7 +277,21 @@ public class WalletFlowService : IWalletFlowService
 
         if (existingPayment != null)
         {
-            return ToCampaignPaymentDto(existingPayment);
+            if (existingPayment.Status == CampaignPaymentStatus.PAID)
+            {
+                return ToCampaignPaymentDto(existingPayment);
+            }
+
+            if (IsCurrentPaymentCodeFormat(existingPayment.PaymentCode))
+            {
+                RefreshPendingPaymentBankInfo(existingPayment);
+                await _dbContext.SaveChangesAsync();
+                return ToCampaignPaymentDto(existingPayment);
+            }
+
+            existingPayment.Status = CampaignPaymentStatus.CANCELLED;
+            existingPayment.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
         }
 
         var quote = CalculateQuote(request.TargetResponses, request.AnswerCount, request.UnitPricePerAnswer);
@@ -1023,6 +1037,25 @@ public class WalletFlowService : IWalletFlowService
         throw BadRequest("Could not generate a unique payment code. Please try again.");
     }
 
+    private static bool IsCurrentPaymentCodeFormat(string paymentCode)
+    {
+        return Regex.IsMatch(paymentCode, @"^CMP[A-F0-9]{8}$", RegexOptions.IgnoreCase);
+    }
+
+    private void RefreshPendingPaymentBankInfo(CampaignPayment payment)
+    {
+        var bankName = _configuration["SePay:BankShortName"] ?? _configuration["ManualPayment:BankName"] ?? payment.BankName;
+        var bankAccountName = _configuration["ManualPayment:BankAccountName"] ?? payment.BankAccountName;
+        var bankAccountNumber = _configuration["ManualPayment:BankAccountNumber"] ?? payment.BankAccountNumber;
+
+        payment.BankName = bankName;
+        payment.BankAccountName = bankAccountName;
+        payment.BankAccountNumber = bankAccountNumber;
+        payment.TransferContent = BuildTransferContent(payment.PaymentCode);
+        payment.QrImageUrl = BuildQrImageUrl(bankName, bankAccountName, bankAccountNumber, payment.TotalAmount, payment.TransferContent);
+        payment.UpdatedAt = DateTime.UtcNow;
+    }
+
     private string BuildQrImageUrl(string bankName, string bankAccountName, string bankAccountNumber, decimal amount, string transferContent)
     {
         var configuredQr = NullIfWhiteSpace(_configuration["ManualPayment:QrImageUrl"]);
@@ -1037,7 +1070,7 @@ public class WalletFlowService : IWalletFlowService
         var description = Uri.EscapeDataString(transferContent);
         var roundedAmount = decimal.Round(amount, 0, MidpointRounding.AwayFromZero);
 
-        return $"https://vietqr.app/img?acc={account}&bank={bank}&amount={roundedAmount:0}&des={description}&template=compact&showinfo=true&holder={holder}";
+        return $"https://vietqr.app/img?acc={account}&bank={bank}&amount={roundedAmount:0}&des={description}&template=compact&showinfo=true&fullacc=true&holder={holder}";
     }
 
     private static string ResolvePaymentCode(SePayWebhookRequest request)
