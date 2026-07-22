@@ -282,16 +282,9 @@ public class WalletFlowService : IWalletFlowService
                 return ToCampaignPaymentDto(existingPayment);
             }
 
-            if (IsCurrentPaymentCodeFormat(existingPayment.PaymentCode))
-            {
-                RefreshPendingPaymentBankInfo(existingPayment);
-                await _dbContext.SaveChangesAsync();
-                return ToCampaignPaymentDto(existingPayment);
-            }
-
-            existingPayment.Status = CampaignPaymentStatus.CANCELLED;
-            existingPayment.UpdatedAt = DateTime.UtcNow;
+            RefreshPendingPaymentBankInfo(existingPayment);
             await _dbContext.SaveChangesAsync();
+            return ToCampaignPaymentDto(existingPayment);
         }
 
         var quote = CalculateQuote(request.TargetResponses, request.AnswerCount, request.UnitPricePerAnswer);

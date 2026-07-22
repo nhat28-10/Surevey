@@ -164,7 +164,7 @@ export function PostSurvey() {
           description="Số response mục tiêu sẽ được dùng để theo dõi tiến độ hoàn thành sau khi campaign được thanh toán."
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="reward">Thưởng mỗi phản hồi (đ) *</Label><Input id="reward" type="number" min="1" step="100" value={form.rewardPerResponse} onChange={event => set("rewardPerResponse", event.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="reward">Thưởng mỗi phản hồi (đ) *</Label><Input id="reward" type="number" min="100" step="100" value={form.rewardPerResponse} onChange={event => set("rewardPerResponse", event.target.value)} required /></div>
             <div className="space-y-2"><Label htmlFor="target">Mục tiêu phản hồi *</Label><Input id="target" type="number" min="1" value={form.targetResponses} onChange={event => set("targetResponses", event.target.value)} required /></div>
             <div className="space-y-2"><Label htmlFor="deadline">Hạn chót *</Label><Input id="deadline" type="datetime-local" value={form.deadline} onChange={event => set("deadline", event.target.value)} required /></div>
             <div className="space-y-2"><Label htmlFor="category">Danh mục *</Label><Input id="category" value={form.category} onChange={event => set("category", event.target.value)} required maxLength={100} /></div>
