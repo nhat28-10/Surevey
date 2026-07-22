@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using WalletService.Data;
 using WalletService.DTOs;
 using WalletService.Enums;
@@ -278,9 +281,9 @@ public class WalletFlowService : IWalletFlowService
 
         var quote = CalculateQuote(request.TargetResponses, request.AnswerCount, request.UnitPricePerAnswer);
         var now = DateTime.UtcNow;
-        var paymentCode = $"CMP{campaignId}-{customerId}-{now:yyyyMMddHHmmss}";
+        var paymentCode = $"CMP{campaignId:D6}{customerId:D6}{now:yyyyMMddHHmmss}";
         var transferContent = BuildTransferContent(paymentCode);
-        var bankName = _configuration["ManualPayment:BankName"] ?? "CONFIGURE_BANK_NAME";
+        var bankName = _configuration["SePay:BankShortName"] ?? _configuration["ManualPayment:BankName"] ?? "CONFIGURE_BANK_NAME";
         var bankAccountName = _configuration["ManualPayment:BankAccountName"] ?? "CONFIGURE_BANK_ACCOUNT_NAME";
         var bankAccountNumber = _configuration["ManualPayment:BankAccountNumber"] ?? "CONFIGURE_BANK_ACCOUNT_NUMBER";
         var payment = new CampaignPayment
@@ -309,6 +312,18 @@ public class WalletFlowService : IWalletFlowService
 
         _dbContext.CampaignPayments.Add(payment);
         await _dbContext.SaveChangesAsync();
+
+        return ToCampaignPaymentDto(payment);
+    }
+
+    public async Task<CampaignPaymentDto> GetMyCampaignPaymentAsync(int paymentId)
+    {
+        RequireRole("Customer");
+        var payment = await FindCampaignPaymentAsync(paymentId);
+        if (payment.CustomerId != _currentUser.UserId)
+        {
+            throw new ApiException(StatusCodes.Status403Forbidden, "You can only view your own payment.");
+        }
 
         return ToCampaignPaymentDto(payment);
     }
@@ -384,49 +399,10 @@ public class WalletFlowService : IWalletFlowService
             throw BadRequest("Only payments pending verification can be approved.");
         }
 
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-        var now = DateTime.UtcNow;
-        var customerWallet = await GetOrCreateWalletAsync(payment.CustomerId);
-
-        var escrow = await _dbContext.CampaignEscrows.FirstOrDefaultAsync(e => e.CampaignId == payment.CampaignId);
-        if (escrow == null)
-        {
-            escrow = new CampaignEscrow
-            {
-                CampaignId = payment.CampaignId,
-                CustomerId = payment.CustomerId,
-                TotalAmount = payment.RewardBudget,
-                RemainingAmount = payment.RewardBudget,
-                Status = CampaignEscrowStatus.ACTIVE,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            _dbContext.CampaignEscrows.Add(escrow);
-            customerWallet.EscrowBalance += payment.RewardBudget;
-            customerWallet.UpdatedAt = now;
-        }
-        else if (escrow.Status != CampaignEscrowStatus.ACTIVE)
-        {
-            escrow.Status = CampaignEscrowStatus.ACTIVE;
-            escrow.UpdatedAt = now;
-        }
-
-        AddTransactionIfMissing(customerWallet, WalletTransactionType.CUSTOMER_PAYMENT, payment.TotalAmount,
-            PaymentReference, payment.Id.ToString(), $"Manual payment for campaign {payment.CampaignId}");
-        AddTransactionIfMissing(customerWallet, WalletTransactionType.PLATFORM_FEE, payment.PlatformFeeAmount,
-            PaymentReference, payment.Id.ToString(), $"Platform fee for campaign {payment.CampaignId}");
-
-        payment.Status = CampaignPaymentStatus.PAID;
-        payment.VerifiedByAdminId = _currentUser.UserId;
-        payment.VerifiedAt = now;
-        payment.RejectReason = null;
-        payment.UpdatedAt = now;
-
-        await _dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
-        await NotifyCampaignPaidAsync(payment);
-
-        return ToCampaignPaymentDto(payment);
+        return ToCampaignPaymentDto(await ConfirmCampaignPaymentAsync(
+            payment,
+            _currentUser.UserId,
+            $"Manual payment for campaign {payment.CampaignId}"));
     }
 
     public async Task<CampaignPaymentDto> RejectPaymentAsync(int paymentId, RejectPaymentRequest request)
@@ -451,6 +427,143 @@ public class WalletFlowService : IWalletFlowService
         await _dbContext.SaveChangesAsync();
 
         return ToCampaignPaymentDto(payment);
+    }
+
+    public async Task<SePayWebhookProcessResult> ProcessSePayWebhookAsync(SePayWebhookRequest request, string rawPayload)
+    {
+        if (request.Id <= 0)
+        {
+            throw BadRequest("SePay transaction id is required.");
+        }
+
+        var now = DateTime.UtcNow;
+        var webhookLog = await _dbContext.SePayWebhookTransactions
+            .FirstOrDefaultAsync(t => t.SePayTransactionId == request.Id);
+
+        if (webhookLog == null)
+        {
+            webhookLog = new SePayWebhookTransaction
+            {
+                SePayTransactionId = request.Id,
+                Gateway = TrimTo(request.Gateway, 120),
+                AccountNumber = TrimTo(request.AccountNumber, 80),
+                SubAccount = NullIfWhiteSpace(TrimTo(request.SubAccount, 80)),
+                Code = NullIfWhiteSpace(TrimTo(request.Code, 80)),
+                Content = TrimTo(request.Content, 1000),
+                TransferType = TrimTo(request.TransferType, 12),
+                TransferAmount = request.TransferAmount,
+                Accumulated = request.Accumulated,
+                ReferenceCode = NullIfWhiteSpace(TrimTo(request.ReferenceCode, 120)),
+                TransactionDate = ParseSePayTransactionDate(request.TransactionDate),
+                RawPayload = TrimTo(rawPayload, 8000),
+                ProcessingStatus = "RECEIVED",
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _dbContext.SePayWebhookTransactions.Add(webhookLog);
+
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                webhookLog = await _dbContext.SePayWebhookTransactions
+                    .FirstAsync(t => t.SePayTransactionId == request.Id);
+            }
+        }
+
+        if (webhookLog.ProcessingStatus is "PAID" or "IGNORED")
+        {
+            return new SePayWebhookProcessResult
+            {
+                Processed = false,
+                PaymentConfirmed = webhookLog.ProcessingStatus == "PAID",
+                PaymentId = webhookLog.CampaignPaymentId,
+                Message = "SePay transaction was already processed."
+            };
+        }
+
+        var paymentCode = ResolvePaymentCode(request);
+        webhookLog.PaymentCode = paymentCode;
+        webhookLog.UpdatedAt = now;
+
+        if (!string.Equals(request.TransferType, "in", StringComparison.OrdinalIgnoreCase))
+        {
+            MarkWebhookIgnored(webhookLog, "Only inbound transfers are processed.");
+            await _dbContext.SaveChangesAsync();
+            return IgnoredWebhookResult(webhookLog);
+        }
+
+        if (string.IsNullOrWhiteSpace(paymentCode))
+        {
+            MarkWebhookIgnored(webhookLog, "No payment code was found in the SePay payload.");
+            await _dbContext.SaveChangesAsync();
+            return IgnoredWebhookResult(webhookLog);
+        }
+
+        var payment = await _dbContext.CampaignPayments
+            .FirstOrDefaultAsync(p => p.PaymentCode == paymentCode);
+
+        if (payment == null)
+        {
+            MarkWebhookIgnored(webhookLog, $"Payment code '{paymentCode}' was not found.");
+            await _dbContext.SaveChangesAsync();
+            return IgnoredWebhookResult(webhookLog);
+        }
+
+        webhookLog.CampaignPaymentId = payment.Id;
+
+        if (!AccountMatches(request.AccountNumber, payment.BankAccountNumber))
+        {
+            MarkWebhookFailed(webhookLog, "SePay account number does not match the payment bank account.");
+            await _dbContext.SaveChangesAsync();
+            return FailedWebhookResult(webhookLog);
+        }
+
+        if (!AmountMatches(request.TransferAmount, payment.TotalAmount))
+        {
+            MarkWebhookFailed(webhookLog, $"Transfer amount {request.TransferAmount:0.##} does not match expected {payment.TotalAmount:0.##}.");
+            await _dbContext.SaveChangesAsync();
+            return FailedWebhookResult(webhookLog);
+        }
+
+        if (payment.Status == CampaignPaymentStatus.PAID)
+        {
+            webhookLog.ProcessingStatus = "PAID";
+            webhookLog.ErrorMessage = null;
+            webhookLog.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            await NotifyCampaignPaidAsync(payment);
+            return new SePayWebhookProcessResult
+            {
+                Processed = false,
+                PaymentConfirmed = true,
+                PaymentId = payment.Id,
+                Message = "Campaign payment was already confirmed."
+            };
+        }
+
+        if (payment.Status is CampaignPaymentStatus.REJECTED or CampaignPaymentStatus.CANCELLED)
+        {
+            MarkWebhookFailed(webhookLog, "Matched payment is rejected or cancelled.");
+            await _dbContext.SaveChangesAsync();
+            return FailedWebhookResult(webhookLog);
+        }
+
+        await ConfirmCampaignPaymentAsync(payment, null, $"SePay transaction {request.Id} for campaign {payment.CampaignId}");
+        webhookLog.ProcessingStatus = "PAID";
+        webhookLog.ErrorMessage = null;
+        webhookLog.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return new SePayWebhookProcessResult
+        {
+            Processed = true,
+            PaymentConfirmed = true,
+            PaymentId = payment.Id,
+            Message = "Campaign payment confirmed from SePay webhook."
+        };
     }
 
     public async Task<AdminRevenueSummaryDto> GetAdminRevenueSummaryAsync()
@@ -684,6 +797,59 @@ public class WalletFlowService : IWalletFlowService
         };
     }
 
+    private async Task<CampaignPayment> ConfirmCampaignPaymentAsync(CampaignPayment payment, int? verifiedByAdminId, string customerPaymentDescription)
+    {
+        if (payment.Status == CampaignPaymentStatus.PAID)
+        {
+            await NotifyCampaignPaidAsync(payment);
+            return payment;
+        }
+
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var now = DateTime.UtcNow;
+        var customerWallet = await GetOrCreateWalletAsync(payment.CustomerId);
+
+        var escrow = await _dbContext.CampaignEscrows.FirstOrDefaultAsync(e => e.CampaignId == payment.CampaignId);
+        if (escrow == null)
+        {
+            escrow = new CampaignEscrow
+            {
+                CampaignId = payment.CampaignId,
+                CustomerId = payment.CustomerId,
+                TotalAmount = payment.RewardBudget,
+                RemainingAmount = payment.RewardBudget,
+                Status = CampaignEscrowStatus.ACTIVE,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _dbContext.CampaignEscrows.Add(escrow);
+            customerWallet.EscrowBalance += payment.RewardBudget;
+            customerWallet.UpdatedAt = now;
+        }
+        else if (escrow.Status != CampaignEscrowStatus.ACTIVE)
+        {
+            escrow.Status = CampaignEscrowStatus.ACTIVE;
+            escrow.UpdatedAt = now;
+        }
+
+        AddTransactionIfMissing(customerWallet, WalletTransactionType.CUSTOMER_PAYMENT, payment.TotalAmount,
+            PaymentReference, payment.Id.ToString(), customerPaymentDescription);
+        AddTransactionIfMissing(customerWallet, WalletTransactionType.PLATFORM_FEE, payment.PlatformFeeAmount,
+            PaymentReference, payment.Id.ToString(), $"Platform fee for campaign {payment.CampaignId}");
+
+        payment.Status = CampaignPaymentStatus.PAID;
+        payment.VerifiedByAdminId = verifiedByAdminId;
+        payment.VerifiedAt = now;
+        payment.RejectReason = null;
+        payment.UpdatedAt = now;
+
+        await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await NotifyCampaignPaidAsync(payment);
+
+        return payment;
+    }
+
     private async Task<Wallet> GetOrCreateWalletAsync(int userId)
     {
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == userId);
@@ -849,17 +1015,115 @@ public class WalletFlowService : IWalletFlowService
             return configuredQr;
         }
 
-        var qrText = string.Join("\n", new[]
-        {
-            "SUREVEY PAYMENT",
-            $"Bank: {bankName}",
-            $"AccountName: {bankAccountName}",
-            $"AccountNumber: {bankAccountNumber}",
-            $"Amount: {amount:0.##} VND",
-            $"Content: {transferContent}"
-        });
+        var bank = Uri.EscapeDataString(bankName);
+        var account = Uri.EscapeDataString(bankAccountNumber);
+        var holder = Uri.EscapeDataString(bankAccountName);
+        var description = Uri.EscapeDataString(transferContent);
+        var roundedAmount = decimal.Round(amount, 0, MidpointRounding.AwayFromZero);
 
-        return $"https://quickchart.io/qr?size=280&margin=1&text={Uri.EscapeDataString(qrText)}";
+        return $"https://vietqr.app/img?acc={account}&bank={bank}&amount={roundedAmount:0}&des={description}&template=compact&showinfo=true&holder={holder}";
+    }
+
+    private static string ResolvePaymentCode(SePayWebhookRequest request)
+    {
+        var directCode = NullIfWhiteSpace(request.Code);
+        if (directCode != null)
+        {
+            return directCode.ToUpperInvariant();
+        }
+
+        var content = request.Content ?? string.Empty;
+        var match = Regex.Match(content, @"\bCMP[A-Z0-9]{8,37}\b", RegexOptions.IgnoreCase);
+        return match.Success ? match.Value.ToUpperInvariant() : string.Empty;
+    }
+
+    private bool AccountMatches(string actualAccountNumber, string expectedAccountNumber)
+    {
+        var requireMatch = _configuration.GetValue("SePay:RequireAccountMatch", true);
+        if (!requireMatch)
+        {
+            return true;
+        }
+
+        return string.Equals(NormalizeAccountNumber(actualAccountNumber), NormalizeAccountNumber(expectedAccountNumber), StringComparison.Ordinal);
+    }
+
+    private bool AmountMatches(decimal actualAmount, decimal expectedAmount)
+    {
+        var requireExactAmount = _configuration.GetValue("SePay:RequireExactAmount", true);
+        return requireExactAmount
+            ? decimal.Round(actualAmount, 0) == decimal.Round(expectedAmount, 0)
+            : actualAmount >= expectedAmount;
+    }
+
+    private static string NormalizeAccountNumber(string value)
+    {
+        return new string((value ?? string.Empty).Where(char.IsDigit).ToArray());
+    }
+
+    private static DateTime? ParseSePayTransactionDate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (DateTime.TryParseExact(value.Trim(), "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeLocal, out var date))
+        {
+            return date.ToUniversalTime();
+        }
+
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out date)
+            ? date.ToUniversalTime()
+            : null;
+    }
+
+    private static string TrimTo(string? value, int maxLength)
+    {
+        var trimmed = value?.Trim() ?? string.Empty;
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
+    }
+
+    private static void MarkWebhookIgnored(SePayWebhookTransaction transaction, string reason)
+    {
+        transaction.ProcessingStatus = "IGNORED";
+        transaction.ErrorMessage = TrimTo(reason, 1000);
+        transaction.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static void MarkWebhookFailed(SePayWebhookTransaction transaction, string reason)
+    {
+        transaction.ProcessingStatus = "FAILED";
+        transaction.ErrorMessage = TrimTo(reason, 1000);
+        transaction.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static SePayWebhookProcessResult IgnoredWebhookResult(SePayWebhookTransaction transaction)
+    {
+        return new SePayWebhookProcessResult
+        {
+            Processed = true,
+            PaymentConfirmed = false,
+            PaymentId = transaction.CampaignPaymentId,
+            Message = transaction.ErrorMessage ?? "SePay transaction ignored."
+        };
+    }
+
+    private static SePayWebhookProcessResult FailedWebhookResult(SePayWebhookTransaction transaction)
+    {
+        return new SePayWebhookProcessResult
+        {
+            Processed = true,
+            PaymentConfirmed = false,
+            PaymentId = transaction.CampaignPaymentId,
+            Message = transaction.ErrorMessage ?? "SePay transaction failed validation."
+        };
     }
 
     private static string? NullIfWhiteSpace(string? value)

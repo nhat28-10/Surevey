@@ -145,6 +145,11 @@ ManualPayment__BankName=<BANK_NAME>
 ManualPayment__BankAccountName=<BANK_ACCOUNT_NAME>
 ManualPayment__BankAccountNumber=<BANK_ACCOUNT_NUMBER>
 ManualPayment__QrImageUrl=<QR_IMAGE_URL_OR_EMPTY>
+SePay__BankShortName=<VIETQR_BANK_SHORT_NAME>
+SePay__WebhookApiKey=<CHANGE_ME_SEPAY_WEBHOOK_API_KEY>
+SePay__WebhookSecret=
+SePay__RequireExactAmount=true
+SePay__RequireAccountMatch=true
 ```
 
 Optional environment variables:
@@ -278,6 +283,11 @@ ManualPayment__BankName
 ManualPayment__BankAccountName
 ManualPayment__BankAccountNumber
 ManualPayment__QrImageUrl
+SePay__BankShortName
+SePay__WebhookApiKey
+SePay__WebhookSecret
+SePay__RequireExactAmount
+SePay__RequireAccountMatch
 Cors__AllowedOrigins__0
 AllowedHosts
 ```

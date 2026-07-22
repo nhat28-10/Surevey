@@ -15,11 +15,13 @@ public interface IWalletFlowService
     Task<WithdrawalDto> MarkWithdrawalPaidAsync(int withdrawalId, ReviewWithdrawalRequest request);
     CampaignQuoteResponse GetCampaignQuote(CampaignQuoteRequest request);
     Task<CampaignPaymentDto> CreateCampaignPaymentAsync(int campaignId, CreateCampaignPaymentRequest request);
+    Task<CampaignPaymentDto> GetMyCampaignPaymentAsync(int paymentId);
     Task<CampaignPaymentDto> SubmitPaymentProofAsync(int paymentId, SubmitPaymentProofRequest request);
     Task<IReadOnlyList<CampaignPaymentDto>> GetAdminPaymentsAsync(Enums.CampaignPaymentStatus? status);
     Task<CampaignPaymentDto> GetAdminPaymentAsync(int paymentId);
     Task<CampaignPaymentDto> ApprovePaymentAsync(int paymentId);
     Task<CampaignPaymentDto> RejectPaymentAsync(int paymentId, RejectPaymentRequest request);
+    Task<SePayWebhookProcessResult> ProcessSePayWebhookAsync(SePayWebhookRequest request, string rawPayload);
     Task<AdminRevenueSummaryDto> GetAdminRevenueSummaryAsync();
     Task<CampaignPaymentStatusResponse> GetCampaignPaymentStatusAsync(int campaignId, int customerId);
     Task<EscrowCampaignResponse> EscrowCampaignAsync(EscrowCampaignRequest request);

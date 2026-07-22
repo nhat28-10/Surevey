@@ -10,8 +10,6 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { Activity, Calendar, CheckCircle2, Copy, ExternalLink, PlusCircle, QrCode, RefreshCw, Target, Users, WalletCards } from "lucide-react";
 import { CustomerDashboardSkeleton } from "./LoadingStates";
 import { EmptyState } from "./EmptyState";
@@ -64,8 +62,6 @@ export function OwnerDashboard() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<CampaignPayment | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [proofImageUrl, setProofImageUrl] = useState("");
-  const [submittingProof, setSubmittingProof] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("UPDATED_DESC");
 
@@ -136,7 +132,6 @@ export function OwnerDashboard() {
         unitPricePerAnswer: campaign.unitPricePerAnswer,
       });
       setPaymentInfo(payment);
-      setProofImageUrl(payment.proofImageUrl || "");
       setPaymentDialogOpen(true);
       await load();
     } catch (err) {
@@ -155,25 +150,29 @@ export function OwnerDashboard() {
     }
   };
 
-  const submitProof = async () => {
-    if (!paymentInfo || !proofImageUrl.trim()) {
-      toast.error("Vui lòng nhập URL ảnh biên lai trước khi gửi xác minh");
-      return;
-    }
+  useEffect(() => {
+    if (!paymentDialogOpen || !paymentInfo || paymentInfo.status === "PAID") return;
 
-    setSubmittingProof(true);
-    try {
-      const updated = await campaignApi.submitPaymentProof(paymentInfo.id, { proofImageUrl: proofImageUrl.trim() });
-      setPaymentInfo(updated);
-      toast.success("Đã gửi biên lai. Admin sẽ xác minh trạng thái thanh toán.");
-      setPaymentDialogOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(errorText(err));
-    } finally {
-      setSubmittingProof(false);
-    }
-  };
+    let cancelled = false;
+    const interval = window.setInterval(async () => {
+      try {
+        const updated = await campaignApi.payment(paymentInfo.id);
+        if (cancelled) return;
+        setPaymentInfo(updated);
+        if (updated.status === "PAID") {
+          toast.success("Thanh toán đã được SePay xác nhận tự động.");
+          await load();
+        }
+      } catch {
+        // Keep the dialog open; the user can still copy transfer details.
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [load, paymentDialogOpen, paymentInfo]);
 
   if (loading) return <CustomerDashboardSkeleton />;
 
@@ -300,7 +299,7 @@ export function OwnerDashboard() {
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Thanh toán campaign bằng mã QR</DialogTitle>
-          <DialogDescription>Quét QR của hệ thống, chuyển đúng số tiền và nội dung, sau đó gửi URL ảnh biên lai để xác minh.</DialogDescription>
+          <DialogDescription>Quét QR, chuyển đúng số tiền và nội dung. Hệ thống sẽ tự cập nhật khi SePay xác nhận giao dịch.</DialogDescription>
         </DialogHeader>
         {paymentInfo && <div className="grid md:grid-cols-[240px_1fr] gap-5">
           <PaymentQrPreview qrImageUrl={paymentInfo.qrImageUrl} />
@@ -311,15 +310,12 @@ export function OwnerDashboard() {
             <PaymentLine label="Chủ tài khoản" value={paymentInfo.bankAccountName} />
             <PaymentLine label="Số tài khoản" value={paymentInfo.bankAccountNumber} onCopy={() => void copy(paymentInfo.bankAccountNumber, "số tài khoản")} />
             <PaymentLine label="Nội dung chuyển khoản" value={paymentInfo.transferContent} onCopy={() => void copy(paymentInfo.transferContent, "nội dung chuyển khoản")} />
+            <PaymentLine label="Trạng thái" value={paymentInfo.status === "PAID" ? "Đã thanh toán" : "Đang chờ SePay xác nhận"} />
           </div>
         </div>}
-        <div className="space-y-2">
-          <Label htmlFor="proofImageUrl">URL ảnh biên lai *</Label>
-          <Input id="proofImageUrl" value={proofImageUrl} onChange={event => setProofImageUrl(event.target.value)} placeholder="https://..." />
-        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Đóng</Button>
-          <Button onClick={() => void submitProof()} disabled={submittingProof} className="bg-green-600 hover:bg-green-700">{submittingProof ? "Đang gửi..." : "Gửi xác minh"}</Button>
+          <Button type="button" onClick={() => paymentInfo && void campaignApi.payment(paymentInfo.id).then(setPaymentInfo).then(() => load())} className="bg-green-600 hover:bg-green-700">Kiểm tra trạng thái</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
