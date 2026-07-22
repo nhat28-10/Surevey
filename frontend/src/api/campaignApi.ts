@@ -32,6 +32,7 @@ export const campaignApi = {
     apiRequest<CampaignQuote>("/wallet/api/payments/campaign-quote", { method: "POST", bodyJson: data }),
   createPayment: (campaignId: number, data: { targetResponses: number; answerCount: number; unitPricePerAnswer: number; customerNote?: string }) =>
     apiRequest<CampaignPayment>(`/wallet/api/campaigns/${campaignId}/payments`, { method: "POST", bodyJson: data }),
+  payment: (paymentId: number) => apiRequest<CampaignPayment>(`/wallet/api/payments/${paymentId}`),
   submitPaymentProof: (paymentId: number, data: { proofImageUrl: string; customerNote?: string }) =>
     apiRequest<CampaignPayment>(`/wallet/api/payments/${paymentId}/proof`, { method: "POST", bodyJson: data }),
 };

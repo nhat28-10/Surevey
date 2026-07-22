@@ -13,6 +13,7 @@ public class WalletDbContext : DbContext
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<CampaignEscrow> CampaignEscrows => Set<CampaignEscrow>();
     public DbSet<CampaignPayment> CampaignPayments => Set<CampaignPayment>();
+    public DbSet<SePayWebhookTransaction> SePayWebhookTransactions => Set<SePayWebhookTransaction>();
     public DbSet<WithdrawalRequest> WithdrawalRequests => Set<WithdrawalRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -92,6 +93,27 @@ public class WalletDbContext : DbContext
                 .WithMany(w => w.WithdrawalRequests)
                 .HasForeignKey(w => w.WalletId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SePayWebhookTransaction>(entity =>
+        {
+            entity.HasIndex(t => t.SePayTransactionId).IsUnique();
+            entity.HasIndex(t => t.CampaignPaymentId);
+            entity.HasIndex(t => t.PaymentCode);
+            entity.HasIndex(t => t.ProcessingStatus);
+            entity.Property(t => t.PaymentCode).HasMaxLength(40);
+            entity.Property(t => t.Gateway).HasMaxLength(120);
+            entity.Property(t => t.AccountNumber).HasMaxLength(80);
+            entity.Property(t => t.SubAccount).HasMaxLength(80);
+            entity.Property(t => t.Code).HasMaxLength(80);
+            entity.Property(t => t.Content).HasMaxLength(1000);
+            entity.Property(t => t.TransferType).HasMaxLength(12);
+            entity.Property(t => t.TransferAmount).HasPrecision(18, 2);
+            entity.Property(t => t.Accumulated).HasPrecision(18, 2);
+            entity.Property(t => t.ReferenceCode).HasMaxLength(120);
+            entity.Property(t => t.RawPayload).HasMaxLength(8000);
+            entity.Property(t => t.ProcessingStatus).HasMaxLength(32);
+            entity.Property(t => t.ErrorMessage).HasMaxLength(1000);
         });
     }
 }

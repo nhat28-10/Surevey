@@ -135,7 +135,12 @@ ServiceUrls__SurveyService=https://<survey-service-domain>
 ManualPayment__BankName=<bank-name>
 ManualPayment__BankAccountName=<bank-account-name>
 ManualPayment__BankAccountNumber=<bank-account-number>
-ManualPayment__QrImageUrl=<qr-image-url>
+ManualPayment__QrImageUrl=
+SePay__BankShortName=<vietqr-bank-short-name>
+SePay__WebhookApiKey=<sepay-webhook-api-key>
+SePay__WebhookSecret=
+SePay__RequireExactAmount=true
+SePay__RequireAccountMatch=true
 ```
 
 ApiGateway:

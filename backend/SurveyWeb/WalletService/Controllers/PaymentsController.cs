@@ -46,6 +46,21 @@ public class PaymentsController : ApiControllerBase
     }
 
     [Authorize(Roles = "Customer")]
+    [HttpGet("api/payments/{paymentId:int}")]
+    [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPayment(int paymentId)
+    {
+        try
+        {
+            return Ok(await _walletFlowService.GetMyCampaignPaymentAsync(paymentId));
+        }
+        catch (ApiException ex)
+        {
+            return HandleApiException(ex);
+        }
+    }
+
+    [Authorize(Roles = "Customer")]
     [HttpPost("api/payments/{paymentId:int}/proof")]
     [ProducesResponseType(typeof(CampaignPaymentDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> SubmitPaymentProof(int paymentId, [FromBody] SubmitPaymentProofRequest request)
