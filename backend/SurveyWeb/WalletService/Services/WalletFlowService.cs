@@ -1037,7 +1037,7 @@ public class WalletFlowService : IWalletFlowService
         var description = Uri.EscapeDataString(transferContent);
         var roundedAmount = decimal.Round(amount, 0, MidpointRounding.AwayFromZero);
 
-        return $"https://vietqr.app/img?acc={account}&bank={bank}&amount={roundedAmount:0}&des={description}&template=compact&showinfo=true&holder={holder}";
+        return $"https://vietqr.app/img?acc={account}&bank={bank}&amount={roundedAmount:0}&des={description}&template=compact&showinfo=true&fullacc=true&holder={holder}";
     }
 
     private static string ResolvePaymentCode(SePayWebhookRequest request)
