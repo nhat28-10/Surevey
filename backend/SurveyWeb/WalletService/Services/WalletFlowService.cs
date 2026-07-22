@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -281,7 +282,7 @@ public class WalletFlowService : IWalletFlowService
 
         var quote = CalculateQuote(request.TargetResponses, request.AnswerCount, request.UnitPricePerAnswer);
         var now = DateTime.UtcNow;
-        var paymentCode = $"CMP{campaignId:D6}{customerId:D6}{now:yyyyMMddHHmmss}";
+        var paymentCode = await GeneratePaymentCodeAsync();
         var transferContent = BuildTransferContent(paymentCode);
         var bankName = _configuration["SePay:BankShortName"] ?? _configuration["ManualPayment:BankName"] ?? "CONFIGURE_BANK_NAME";
         var bankAccountName = _configuration["ManualPayment:BankAccountName"] ?? "CONFIGURE_BANK_ACCOUNT_NAME";
@@ -1005,6 +1006,21 @@ public class WalletFlowService : IWalletFlowService
     private static string BuildTransferContent(string paymentCode)
     {
         return $"SUREVEY {paymentCode}";
+    }
+
+    private async Task<string> GeneratePaymentCodeAsync()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            var code = $"CMP{RandomNumberGenerator.GetHexString(8)}";
+            var exists = await _dbContext.CampaignPayments.AnyAsync(p => p.PaymentCode == code);
+            if (!exists)
+            {
+                return code;
+            }
+        }
+
+        throw BadRequest("Could not generate a unique payment code. Please try again.");
     }
 
     private string BuildQrImageUrl(string bankName, string bankAccountName, string bankAccountNumber, decimal amount, string transferContent)
