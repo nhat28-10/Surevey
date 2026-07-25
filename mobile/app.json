@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "SureVey",
+    "slug": "surevey-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.surevey.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#16a34a"
+      }
+    },
+    "extra": {
+      "apiGatewayUrl": "",
+      "userApiUrl": "https://suresurvey-user-service.onrender.com",
+      "surveyApiUrl": "https://suresurvey-survey-service.onrender.com",
+      "walletApiUrl": "https://suresurvey-wallet-service.onrender.com",
+      "eas": {
+        "projectId": "664073db-6df8-4eba-8c6e-bcaff5a78c1c"
+      }
+    }
+  }
+}

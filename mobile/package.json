@@ -1,0 +1,30 @@
+{
+  "name": "surevey-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "prebuild:android": "expo prebuild --platform android",
+    "apk:debug": "expo run:android --variant debug",
+    "apk:release": "cd android && gradlew assembleRelease",
+    "eas:apk": "eas build --platform android --profile preview"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "expo": "~56.0.0",
+    "expo-constants": "~56.0.20",
+    "expo-status-bar": "~56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "babel-preset-expo": "~56.0.18",
+    "eas-cli": "^16.0.0",
+    "typescript": "~6.0.3"
+  }
+}
