@@ -19,11 +19,16 @@ public class SePayWebhookController : ApiControllerBase
     };
 
     private readonly IConfiguration _configuration;
+    private readonly ILogger<SePayWebhookController> _logger;
     private readonly IWalletFlowService _walletFlowService;
 
-    public SePayWebhookController(IConfiguration configuration, IWalletFlowService walletFlowService)
+    public SePayWebhookController(
+        IConfiguration configuration,
+        ILogger<SePayWebhookController> logger,
+        IWalletFlowService walletFlowService)
     {
         _configuration = configuration;
+        _logger = logger;
         _walletFlowService = walletFlowService;
     }
 
@@ -32,9 +37,16 @@ public class SePayWebhookController : ApiControllerBase
     public async Task<IActionResult> Receive()
     {
         var rawPayload = await ReadRawBodyAsync();
+        _logger.LogInformation(
+            "Received SePay webhook. ContentType={ContentType}, ContentLength={ContentLength}, BodyLength={BodyLength}",
+            Request.ContentType,
+            Request.ContentLength,
+            rawPayload.Length);
+
         var unauthorized = ValidateWebhookAuthentication(rawPayload);
         if (unauthorized != null)
         {
+            _logger.LogWarning("Rejected SePay webhook because authentication failed.");
             return unauthorized;
         }
 
@@ -45,21 +57,35 @@ public class SePayWebhookController : ApiControllerBase
         }
         catch (JsonException)
         {
+            _logger.LogWarning("Rejected SePay webhook because payload is not valid JSON.");
             return BadRequest(new { success = false, message = "Invalid SePay JSON payload." });
         }
 
         if (request == null)
         {
+            _logger.LogWarning("Rejected SePay webhook because payload is empty.");
             return BadRequest(new { success = false, message = "Empty SePay payload." });
         }
 
         try
         {
-            await _walletFlowService.ProcessSePayWebhookAsync(request, rawPayload);
+            var result = await _walletFlowService.ProcessSePayWebhookAsync(request, rawPayload);
+            _logger.LogInformation(
+                "Processed SePay webhook. SePayTransactionId={SePayTransactionId}, PaymentId={PaymentId}, PaymentConfirmed={PaymentConfirmed}, Message={Message}",
+                request.Id,
+                result.PaymentId,
+                result.PaymentConfirmed,
+                result.Message);
             return Ok(new { success = true });
         }
         catch (ApiException ex)
         {
+            _logger.LogWarning(
+                ex,
+                "Rejected SePay webhook. SePayTransactionId={SePayTransactionId}, StatusCode={StatusCode}, Message={Message}",
+                request.Id,
+                ex.StatusCode,
+                ex.Message);
             return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
         }
     }

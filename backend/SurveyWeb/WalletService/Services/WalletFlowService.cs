@@ -1069,7 +1069,7 @@ public class WalletFlowService : IWalletFlowService
     private static string ResolvePaymentCode(SePayWebhookRequest request)
     {
         var directCode = NullIfWhiteSpace(request.Code);
-        if (directCode != null)
+        if (directCode != null && IsCurrentPaymentCodeFormat(directCode))
         {
             return directCode.ToUpperInvariant();
         }
