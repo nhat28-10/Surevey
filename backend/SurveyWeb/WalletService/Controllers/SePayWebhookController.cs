@@ -67,6 +67,14 @@ public class SePayWebhookController : ApiControllerBase
             return BadRequest(new { success = false, message = "Empty SePay payload." });
         }
 
+        if (request.Id <= 0)
+        {
+            _logger.LogInformation(
+                "Accepted SePay webhook test payload without processing. SePayTransactionId={SePayTransactionId}",
+                request.Id);
+            return Ok(new { success = true });
+        }
+
         try
         {
             var result = await _walletFlowService.ProcessSePayWebhookAsync(request, rawPayload);
