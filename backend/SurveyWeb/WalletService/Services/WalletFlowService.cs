@@ -1012,7 +1012,7 @@ public class WalletFlowService : IWalletFlowService
 
     private static string BuildTransferContent(string paymentCode)
     {
-        return $"SUREVEY {paymentCode}";
+        return $"{paymentCode} SUREVEY";
     }
 
     private async Task<string> GeneratePaymentCodeAsync()
