@@ -133,7 +133,7 @@ export function AdminProcessRequests() {
 
   const visiblePayments = useMemo(() => paymentFilter === "ALL" ? payments : payments.filter(p => p.status === paymentFilter), [paymentFilter, payments]);
   const visibleWithdrawals = useMemo(() => withdrawalFilter === "ALL" ? withdrawals : withdrawals.filter(w => w.status === withdrawalFilter), [withdrawalFilter, withdrawals]);
-  const pendingPayments = payments.filter(p => p.status === "PENDING_VERIFY").length;
+  const pendingPayments = payments.filter(p => p.status === "PENDING" || p.status === "PENDING_VERIFY").length;
   const pendingWithdrawals = withdrawals.filter(w => w.status === "PENDING").length;
   const approvedWithdrawals = withdrawals.filter(w => w.status === "APPROVED").length;
   const paidPayments = payments.filter(p => p.status === "PAID").length;
@@ -287,7 +287,7 @@ function PaymentPanel({
   busy: string;
   onRun: (key: string, action: () => Promise<unknown>, success: string) => void;
 }) {
-  const pending = allPayments.filter(payment => payment.status === "PENDING_VERIFY").length;
+  const pending = allPayments.filter(payment => payment.status === "PENDING" || payment.status === "PENDING_VERIFY").length;
   const paid = allPayments.filter(payment => payment.status === "PAID").length;
   const rejected = allPayments.filter(payment => payment.status === "REJECTED").length;
   const exportPayments = () => exportToXlsx("admin-payments", "Payments", payments.map(payment => ({
@@ -310,6 +310,7 @@ function PaymentPanel({
       <div className="flex flex-col gap-2 sm:flex-row">
         <select className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 shadow-sm outline-none transition focus:border-slate-700 focus:ring-2 focus:ring-slate-200" value={filter} onChange={event => setFilter(event.target.value)}>
           <option value="ALL">Tất cả thanh toán</option>
+          <option value="PENDING">Chờ xử lý</option>
           <option value="PENDING_VERIFY">Chờ xác minh</option>
           <option value="PAID">Đã thanh toán</option>
           <option value="REJECTED">Bị từ chối</option>
@@ -349,7 +350,7 @@ function PaymentPanel({
               {payment.proofImageUrl && <a href={payment.proofImageUrl} target="_blank" rel="noreferrer" className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 font-medium text-indigo-700 transition hover:bg-indigo-100">Mở biên lai</a>}
             </div>
             <div className="flex flex-wrap gap-2">
-              {payment.status === "PENDING_VERIFY" && <>
+              {(payment.status === "PENDING" || payment.status === "PENDING_VERIFY") && <>
                 <Button disabled={busy === `p-${payment.id}`} className="bg-slate-900 text-white hover:bg-slate-800" onClick={() => onRun(`p-${payment.id}`, () => adminApi.approvePayment(payment.id), "Đã xác minh thanh toán.")}>Xác minh đã thanh toán</Button>
                 <Button variant="destructive" disabled={busy === `p-${payment.id}`} onClick={() => {
                   const reason = window.prompt("Lý do từ chối:");

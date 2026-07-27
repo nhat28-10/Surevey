@@ -402,9 +402,9 @@ public class WalletFlowService : IWalletFlowService
             return ToCampaignPaymentDto(payment);
         }
 
-        if (payment.Status != CampaignPaymentStatus.PENDING_VERIFY)
+        if (payment.Status is not (CampaignPaymentStatus.PENDING or CampaignPaymentStatus.PENDING_VERIFY))
         {
-            throw BadRequest("Only payments pending verification can be approved.");
+            throw BadRequest("Only pending payments can be approved.");
         }
 
         return ToCampaignPaymentDto(await ConfirmCampaignPaymentAsync(
