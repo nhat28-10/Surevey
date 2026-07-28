@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 export function NotificationBell({ user }: { user: User }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -30,6 +31,15 @@ export function NotificationBell({ user }: { user: User }) {
     return () => window.removeEventListener("notifications-changed", load);
   }, [load]);
 
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(media.matches);
+
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
   const unreadCount = notifications.filter(notification => !notification.read).length;
   const preview = notifications.slice(0, 6);
 
@@ -42,6 +52,17 @@ export function NotificationBell({ user }: { user: User }) {
   const markAll = () => {
     markAllNotificationsRead(user.id, notifications.map(notification => notification.id));
   };
+
+  if (isMobile) {
+    return <Button asChild type="button" variant="outline" size="sm" className="relative h-9 w-9 rounded-full border-slate-300 p-0 text-slate-700 hover:bg-slate-100">
+      <Link to="/notifications" aria-label="Thông báo">
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>}
+      </Link>
+    </Button>;
+  }
 
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>

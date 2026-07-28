@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
 import { AppButton, Badge, Card, EmptyState, ErrorBanner, LoadingState, Row, Screen, Subtitle, Title } from "../components/ui";
 import { getNotificationsForUser, markAllNotificationsRead, markNotificationRead, type AppNotification } from "../services/notificationService";
 import type { User } from "../services/authService";
