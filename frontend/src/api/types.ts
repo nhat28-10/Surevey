@@ -47,6 +47,8 @@ export interface AvailableCampaign {
   remainingSlots: number;
   deadline: string;
   category: string;
+  myParticipationId?: number | null;
+  myParticipationStatus?: ParticipationStatus | null;
 }
 
 export interface Participation {
