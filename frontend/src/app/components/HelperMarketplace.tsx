@@ -13,6 +13,26 @@ import { Calendar, Clock, Search, Users, Wallet } from "lucide-react";
 import { MarketplaceSkeleton } from "./LoadingStates";
 import { EmptyState } from "./EmptyState";
 
+function actionLabel(campaign: AvailableCampaign) {
+  if (campaign.myParticipationStatus === "APPROVED") return "Đã hoàn thành";
+  if (campaign.myParticipationStatus === "SUBMITTED") return "Chờ duyệt";
+  if (campaign.myParticipationStatus === "ACCEPTED" || campaign.myParticipationStatus === "IN_PROGRESS") return "Tiếp tục làm";
+  if (campaign.myParticipationStatus === "REJECTED") return "Đã bị từ chối";
+  if (campaign.myParticipationStatus === "CANCELLED") return "Đã hủy";
+  return "Nhận campaign";
+}
+
+function canContinue(campaign: AvailableCampaign) {
+  return Boolean(campaign.myParticipationId && (campaign.myParticipationStatus === "ACCEPTED" || campaign.myParticipationStatus === "IN_PROGRESS"));
+}
+
+function isActionDisabled(campaign: AvailableCampaign, busy: boolean) {
+  return busy || campaign.myParticipationStatus === "APPROVED"
+    || campaign.myParticipationStatus === "SUBMITTED"
+    || campaign.myParticipationStatus === "REJECTED"
+    || campaign.myParticipationStatus === "CANCELLED";
+}
+
 function errorText(error: unknown) {
   return error instanceof ApiError || error instanceof Error ? error.message : "Không thể tải marketplace";
 }
@@ -127,7 +147,19 @@ export function HelperMarketplace() {
             <MarketMetric icon={<Clock className="w-4 h-4" />} label="Loại" value="Link ngoài" />
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 line-clamp-3">{campaign.instruction}</div>
-          <Button className="mt-auto bg-slate-900 font-semibold text-white hover:bg-slate-800" disabled={busyId === campaign.id} onClick={() => void accept(campaign)}>{busyId === campaign.id ? "Đang nhận..." : "Nhận campaign"}</Button>
+          <Button
+            className="mt-auto bg-slate-900 font-semibold text-white hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500"
+            disabled={isActionDisabled(campaign, busyId === campaign.id)}
+            onClick={() => {
+              if (canContinue(campaign) && campaign.myParticipationId) {
+                navigate(`/collaborator/participation/${campaign.myParticipationId}`);
+                return;
+              }
+              void accept(campaign);
+            }}
+          >
+            {busyId === campaign.id ? "Đang nhận..." : actionLabel(campaign)}
+          </Button>
         </CardContent>
       </Card>)}</div>}
   </div>;

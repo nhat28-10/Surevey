@@ -375,6 +375,7 @@ public class SurveyFlowService : ISurveyFlowService
     {
         RequireRole("Collaborator");
         var now = DateTime.UtcNow;
+        var collaboratorId = _currentUser.UserId;
 
         return await _dbContext.Campaigns
             .Where(c => c.Status == CampaignStatus.ACTIVE
@@ -393,7 +394,17 @@ public class SurveyFlowService : ISurveyFlowService
                 ApprovedResponses = c.ApprovedResponses,
                 RemainingSlots = c.TargetResponses - c.ApprovedResponses,
                 Deadline = c.Deadline,
-                Category = c.Category
+                Category = c.Category,
+                MyParticipationId = c.Participations
+                    .Where(p => p.CollaboratorId == collaboratorId)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => (int?)p.Id)
+                    .FirstOrDefault(),
+                MyParticipationStatus = c.Participations
+                    .Where(p => p.CollaboratorId == collaboratorId)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Select(p => (ParticipationStatus?)p.Status)
+                    .FirstOrDefault()
             })
             .ToListAsync();
     }

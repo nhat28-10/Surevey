@@ -1,5 +1,7 @@
 namespace SurveyService.DTOs;
 
+using SurveyService.Enums;
+
 public class AvailableSurveyDto
 {
     public int Id { get; set; }
@@ -13,4 +15,6 @@ public class AvailableSurveyDto
     public int RemainingSlots { get; set; }
     public DateTime Deadline { get; set; }
     public string Category { get; set; } = string.Empty;
+    public int? MyParticipationId { get; set; }
+    public ParticipationStatus? MyParticipationStatus { get; set; }
 }
