@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Bell, CheckCheck, CircleAlert, ClipboardList, FileCheck2, Loader2, WalletCards } from "lucide-react";
 import type { User } from "../types/auth";
@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 export function NotificationBell({ user }: { user: User }) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +35,7 @@ export function NotificationBell({ user }: { user: User }) {
 
   const openNotification = (notification: AppNotification) => {
     markNotificationRead(user.id, notification.id);
+    setOpen(false);
     navigate(notification.href);
   };
 
@@ -41,7 +43,7 @@ export function NotificationBell({ user }: { user: User }) {
     markAllNotificationsRead(user.id, notifications.map(notification => notification.id));
   };
 
-  return <Popover>
+  return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger asChild>
       <Button type="button" variant="outline" size="sm" className="relative h-9 w-9 rounded-full border-slate-300 p-0 text-slate-700 hover:bg-slate-100">
         <Bell className="h-4 w-4" />
@@ -53,19 +55,19 @@ export function NotificationBell({ user }: { user: User }) {
     <PopoverContent align="end" className="w-[360px] max-w-[calc(100vw-24px)] p-0">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
-          <div className="font-bold text-slate-950">Thông báo</div>
-          <div className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : "Không có thông báo mới"}</div>
+          <div className="font-bold text-slate-950">ThÃ´ng bÃ¡o</div>
+          <div className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} thÃ´ng bÃ¡o chÆ°a Ä‘á»c` : "KhÃ´ng cÃ³ thÃ´ng bÃ¡o má»›i"}</div>
         </div>
         {notifications.length > 0 && <Button type="button" size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={markAll}>
-          <CheckCheck className="mr-1 h-3.5 w-3.5" />Đã đọc
+          <CheckCheck className="mr-1 h-3.5 w-3.5" />ÄÃ£ Ä‘á»c
         </Button>}
       </div>
 
       <div className="max-h-[420px] overflow-y-auto p-2">
         {loading ? <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" />Đang tải thông báo
+          <Loader2 className="h-4 w-4 animate-spin" />Äang táº£i thÃ´ng bÃ¡o
         </div> : preview.length === 0 ? <div className="py-8 text-center text-sm text-slate-500">
-          Chưa có thông báo phù hợp với tài khoản này.
+          ChÆ°a cÃ³ thÃ´ng bÃ¡o phÃ¹ há»£p vá»›i tÃ i khoáº£n nÃ y.
         </div> : preview.map(notification => <button
           key={notification.id}
           type="button"
@@ -86,7 +88,7 @@ export function NotificationBell({ user }: { user: User }) {
 
       <div className="border-t border-slate-200 p-3">
         <Button asChild type="button" variant="outline" className="w-full border-slate-300 font-semibold text-slate-900 hover:bg-slate-100">
-          <Link to="/notifications">Xem tất cả thông báo</Link>
+          <Link to="/notifications" onClick={() => setOpen(false)}>Xem tất cả thông báo</Link>
         </Button>
       </div>
     </PopoverContent>
@@ -120,10 +122,10 @@ export function NotificationIcon({ notification }: { notification: AppNotificati
 export function NotificationTypeBadge({ type }: { type: AppNotification["type"] }) {
   const label = {
     campaign: "Campaign",
-    payment: "Thanh toán",
+    payment: "Thanh toÃ¡n",
     submission: "Submission",
-    wallet: "Ví",
-    system: "Hệ thống",
+    wallet: "VÃ­",
+    system: "Há»‡ thá»‘ng",
   }[type];
 
   return <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">{label}</Badge>;
