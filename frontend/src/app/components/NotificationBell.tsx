@@ -55,19 +55,19 @@ export function NotificationBell({ user }: { user: User }) {
     <PopoverContent align="end" className="w-[360px] max-w-[calc(100vw-24px)] p-0">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
-          <div className="font-bold text-slate-950">ThÃ´ng bÃ¡o</div>
-          <div className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} thÃ´ng bÃ¡o chÆ°a Ä‘á»c` : "KhÃ´ng cÃ³ thÃ´ng bÃ¡o má»›i"}</div>
+          <div className="font-bold text-slate-950">Thông báo</div>
+          <div className="text-xs text-slate-500">{unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : "Không có thông báo mới"}</div>
         </div>
         {notifications.length > 0 && <Button type="button" size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={markAll}>
-          <CheckCheck className="mr-1 h-3.5 w-3.5" />ÄÃ£ Ä‘á»c
+          <CheckCheck className="mr-1 h-3.5 w-3.5" />Đã đọc
         </Button>}
       </div>
 
       <div className="max-h-[420px] overflow-y-auto p-2">
         {loading ? <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" />Äang táº£i thÃ´ng bÃ¡o
+          <Loader2 className="h-4 w-4 animate-spin" />Đang tải thông báo
         </div> : preview.length === 0 ? <div className="py-8 text-center text-sm text-slate-500">
-          ChÆ°a cÃ³ thÃ´ng bÃ¡o phÃ¹ há»£p vá»›i tÃ i khoáº£n nÃ y.
+          Chưa có thông báo phù hợp với tài khoản này.
         </div> : preview.map(notification => <button
           key={notification.id}
           type="button"
@@ -122,10 +122,10 @@ export function NotificationIcon({ notification }: { notification: AppNotificati
 export function NotificationTypeBadge({ type }: { type: AppNotification["type"] }) {
   const label = {
     campaign: "Campaign",
-    payment: "Thanh toÃ¡n",
+    payment: "Thanh toán",
     submission: "Submission",
-    wallet: "VÃ­",
-    system: "Há»‡ thá»‘ng",
+    wallet: "Ví",
+    system: "Hệ thống",
   }[type];
 
   return <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">{label}</Badge>;
