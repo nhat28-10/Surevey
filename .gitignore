@@ -16,6 +16,9 @@ node_modules/
 **/node_modules/
 mobile/.expo/
 mobile/dist/
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
 bin/
 obj/
 **/bin/
