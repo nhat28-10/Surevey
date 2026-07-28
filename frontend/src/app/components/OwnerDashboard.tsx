@@ -111,11 +111,6 @@ export function OwnerDashboard() {
     });
   }, [campaigns, sortBy, statusFilter]);
 
-  const recentActivities = useMemo(() => campaigns
-    .slice()
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5), [campaigns]);
-
   const openPayment = async (campaign: Campaign) => {
     setBusyId(campaign.id);
     try {
@@ -192,15 +187,12 @@ export function OwnerDashboard() {
 
     <CampaignProgressOverview campaigns={campaigns} completedCampaigns={stats.completedCampaigns} paidCampaigns={stats.paidCampaigns} paidBudget={stats.paidBudget} />
 
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <Stat label="Tổng campaign" value={stats.total} />
       <Stat label="Đang hiển thị" value={stats.active} />
       <Stat label="Chờ thanh toán" value={stats.waitingPayment} />
-      <Stat label="Phản hồi đã duyệt" value={stats.approved} />
       <Stat label="Đã trả thưởng" value={money(stats.paidRewards)} />
     </div>
-
-    <RecentCampaignActivity campaigns={recentActivities} />
 
     {paymentInfo && <Alert><WalletCards className="w-4 h-4" /><AlertDescription>Thanh toán <strong>{paymentInfo.paymentCode}</strong> - trạng thái <strong>{paymentInfo.status}</strong> - {money(paymentInfo.totalAmount)}.</AlertDescription></Alert>}
 
@@ -259,24 +251,21 @@ export function OwnerDashboard() {
           </CardHeader>
           <CardContent className="space-y-4 flex-1 flex flex-col p-4">
             <p className="text-sm text-slate-600 line-clamp-3">{campaign.description}</p>
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex justify-between text-sm mb-2"><span className="font-medium text-slate-700">Tiến độ response</span><span className="font-semibold text-slate-950">{Math.round(progress)}%</span></div>
-              <Progress value={progress} className="h-3" />
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <MiniMetric label="Đã duyệt" value={campaign.approvedResponses} />
-              <MiniMetric label="Còn thiếu" value={remainingResponses} tone={isComplete ? "success" : "warning"} />
-              <MiniMetric label="Mục tiêu" value={campaign.targetResponses} />
-            </div>
-            <div className="grid gap-2 text-sm">
-              <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">Thưởng</span>
-                <strong className="text-slate-950">{money(campaign.rewardPerResponse)}</strong>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium text-slate-700">Tiến độ response</span>
+                <span className={isComplete ? "font-semibold text-green-700" : "font-semibold text-amber-700"}>
+                  {isComplete ? "Đạt chỉ tiêu" : `Còn ${remainingResponses}`}
+                </span>
               </div>
-              <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">Thanh toán</span>
+              <Progress value={progress} className="h-3" />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                <span>{campaign.approvedResponses}/{campaign.targetResponses} đã duyệt</span>
+                <span>Thưởng {money(campaign.rewardPerResponse)}</span>
                 <Badge variant="outline" className={`rounded-full border px-2 py-0.5 ${paymentStatusClass(campaign.paymentStatus)}`}>{paymentLabels[campaign.paymentStatus] || campaign.paymentStatus}</Badge>
               </div>
+            </div>
+            <div className="grid gap-2 text-sm">
               {campaign.rejectReason && <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Lý do: {campaign.rejectReason}</p>}
             </div>
             <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-4">
@@ -350,21 +339,21 @@ function CampaignProgressOverview({
         <div>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Target className="h-5 w-5 text-green-700" />
-            Tien do tung campaign
+            Tiến độ từng campaign
           </CardTitle>
           <p className="mt-1 text-sm text-gray-600">
-            Moi campaign duoc tinh rieng theo response da duyet tren muc tieu cua chinh campaign do.
+            Theo dõi riêng từng campaign để biết campaign nào đã đủ chỉ tiêu, campaign nào còn thiếu response.
           </p>
         </div>
         <div className="rounded-md bg-white px-4 py-2 text-right shadow-sm">
-          <div className="text-sm text-gray-500">Dat muc tieu</div>
+          <div className="text-sm text-gray-500">Đạt chỉ tiêu</div>
           <div className="text-2xl font-bold text-green-700">{completedCampaigns}/{paidCampaigns}</div>
         </div>
       </div>
     </CardHeader>
     <CardContent className="space-y-5 pt-5">
       {trackedCampaigns.length === 0 ? <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-        Chua co campaign da thanh toan de theo doi tien do response.
+        Chưa có campaign đã thanh toán để theo dõi tiến độ response.
       </div> : <div className="space-y-3">
         {trackedCampaigns.map(campaign => {
           const progress = campaign.targetResponses ? Math.min(100, campaign.approvedResponses / campaign.targetResponses * 100) : 0;
@@ -375,10 +364,10 @@ function CampaignProgressOverview({
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="truncate font-semibold text-slate-950">{campaign.title}</div>
-                <div className="mt-1 text-sm text-slate-500">{campaign.approvedResponses}/{campaign.targetResponses} response da duyet</div>
+                <div className="mt-1 text-sm text-slate-500">{campaign.approvedResponses}/{campaign.targetResponses} response đã duyệt</div>
               </div>
               <Badge variant="outline" className={`w-fit rounded-full border px-3 py-1 ${complete ? "border-green-200 bg-green-100 text-green-800" : "border-amber-200 bg-amber-100 text-amber-900"}`}>
-                {complete ? "Dat muc tieu" : `Con ${remaining} response`}
+                {complete ? "Đạt chỉ tiêu" : `Còn ${remaining} response`}
               </Badge>
             </div>
             <div className="mt-3 flex items-center gap-3">
@@ -390,10 +379,10 @@ function CampaignProgressOverview({
       </div>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <ProgressMetric icon={<Users className="h-4 w-4" />} label="Campaign da thanh toan" value={paidCampaigns} />
-        <ProgressMetric icon={<CheckCircle2 className="h-4 w-4" />} label="Campaign dat chi tieu" value={completedCampaigns} />
-        <ProgressMetric icon={<Target className="h-4 w-4" />} label="Campaign con thieu" value={Math.max(paidCampaigns - completedCampaigns, 0)} />
-        <ProgressMetric icon={<WalletCards className="h-4 w-4" />} label="Ngan sach da thanh toan" value={money(paidBudget)} />
+        <ProgressMetric icon={<Users className="h-4 w-4" />} label="Đã thanh toán" value={paidCampaigns} />
+        <ProgressMetric icon={<CheckCircle2 className="h-4 w-4" />} label="Đạt chỉ tiêu" value={completedCampaigns} />
+        <ProgressMetric icon={<Target className="h-4 w-4" />} label="Còn thiếu" value={Math.max(paidCampaigns - completedCampaigns, 0)} />
+        <ProgressMetric icon={<WalletCards className="h-4 w-4" />} label="Ngân sách đã thanh toán" value={money(paidBudget)} />
       </div>
     </CardContent>
   </Card>;
