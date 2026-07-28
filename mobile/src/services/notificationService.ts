@@ -172,7 +172,7 @@ function customerSubmissionNotifications(campaign: Campaign, submissions: Submis
 }
 
 function collaboratorParticipationNotifications(participation: Participation): AppNotification[] {
-  const title = participation.campaign?.title || `Campaign #${participation.campaignId}`;
+  const campaignTitle = participation.campaign?.title || `Campaign #${participation.campaignId}`;
   const base = { target: "collaborator.activities" as const, read: false };
 
   if (participation.status === "APPROVED") {
@@ -182,7 +182,7 @@ function collaboratorParticipationNotifications(participation: Participation): A
       type: "submission",
       tone: "green",
       title: "Submission đã được duyệt",
-      description: `${title} đã được Customer duyệt, ví sẽ ghi nhận thưởng nếu đủ điều kiện.`,
+      description: `${campaignTitle} đã được Customer duyệt, ví sẽ ghi nhận thưởng nếu đủ điều kiện.`,
       createdAt: participation.updatedAt
     }];
   }
@@ -194,7 +194,7 @@ function collaboratorParticipationNotifications(participation: Participation): A
       type: "submission",
       tone: "red",
       title: "Submission bị từ chối",
-      description: `${title} cần xem lại yêu cầu hoặc lý do từ Customer.`,
+      description: `${campaignTitle} cần xem lại yêu cầu hoặc lý do từ Customer.`,
       createdAt: participation.updatedAt
     }];
   }
@@ -206,7 +206,7 @@ function collaboratorParticipationNotifications(participation: Participation): A
       type: "submission",
       tone: "amber",
       title: "Submission đang chờ duyệt",
-      description: `${title} đã nộp và đang chờ Customer kiểm tra.`,
+      description: `${campaignTitle} đã nộp và đang chờ Customer kiểm tra.`,
       createdAt: participation.submittedAt || participation.updatedAt
     }];
   }
@@ -216,6 +216,7 @@ function collaboratorParticipationNotifications(participation: Participation): A
 
 function walletTransactionNotifications(transaction: WalletTransaction): AppNotification[] {
   if (transaction.amount <= 0) return [];
+
   return [{
     id: `collaborator-wallet-transaction-${transaction.id}`,
     type: "wallet",

@@ -16,8 +16,9 @@ function workStatusText(status: string) {
   if (status === "ACCEPTED") return "Đã nhận";
   if (status === "IN_PROGRESS") return "Đang làm";
   if (status === "SUBMITTED") return "Chờ duyệt";
-  if (status === "APPROVED") return "Đã duyệt";
+  if (status === "APPROVED") return "Đã hoàn thành";
   if (status === "REJECTED") return "Bị từ chối";
+  if (status === "CANCELLED") return "Đã hủy";
   return status;
 }
 
@@ -26,6 +27,24 @@ function statusTone(status: string): "green" | "amber" | "red" | "slate" {
   if (status === "REJECTED" || status === "CANCELLED") return "red";
   if (status === "SUBMITTED" || status === "PENDING" || status === "ACCEPTED" || status === "IN_PROGRESS") return "amber";
   return "slate";
+}
+
+function marketplaceActionLabel(campaign: AvailableCampaign) {
+  if (!campaign.myParticipationStatus) return "Nhận campaign";
+  if (campaign.myParticipationStatus === "ACCEPTED" || campaign.myParticipationStatus === "IN_PROGRESS") return "Tiếp tục làm";
+  if (campaign.myParticipationStatus === "SUBMITTED") return "Chờ duyệt";
+  if (campaign.myParticipationStatus === "APPROVED") return "Đã hoàn thành";
+  if (campaign.myParticipationStatus === "REJECTED") return "Đã bị từ chối";
+  if (campaign.myParticipationStatus === "CANCELLED") return "Đã hủy";
+  return "Đã nhận";
+}
+
+function canContinue(campaign: AvailableCampaign) {
+  return !!campaign.myParticipationId && (campaign.myParticipationStatus === "ACCEPTED" || campaign.myParticipationStatus === "IN_PROGRESS");
+}
+
+function isMarketplaceActionDisabled(campaign: AvailableCampaign) {
+  return !!campaign.myParticipationStatus && !canContinue(campaign);
 }
 
 function questionsFromInstruction(instruction: string) {
@@ -62,6 +81,13 @@ export function CollaboratorMarketplaceScreen({ navigate }: { navigate: (route: 
   }, [campaigns, query]);
 
   const accept = async (campaign: AvailableCampaign) => {
+    if (canContinue(campaign) && campaign.myParticipationId) {
+      navigate({ name: "collaborator.participation", participationId: campaign.myParticipationId });
+      return;
+    }
+
+    if (isMarketplaceActionDisabled(campaign)) return;
+
     setBusyId(campaign.id);
     try {
       const participation = await campaignApi.accept(campaign.id);
@@ -94,7 +120,9 @@ export function CollaboratorMarketplaceScreen({ navigate }: { navigate: (route: 
         filtered.map(campaign => <Card key={campaign.id}>
           <Row spread wrap>
             <Text style={styles.cardTitle}>{campaign.title}</Text>
-            <Badge tone="green">{campaign.category}</Badge>
+            <Badge tone={campaign.myParticipationStatus === "APPROVED" ? "green" : campaign.myParticipationStatus ? statusTone(campaign.myParticipationStatus) : "green"}>
+              {campaign.myParticipationStatus ? workStatusText(campaign.myParticipationStatus) : campaign.category}
+            </Badge>
           </Row>
           <Text style={styles.description} numberOfLines={4}>{campaign.description}</Text>
           <Row wrap>
@@ -103,7 +131,15 @@ export function CollaboratorMarketplaceScreen({ navigate }: { navigate: (route: 
             <Metric label="Hạn" value={date(campaign.deadline)} />
           </Row>
           <Text style={styles.instruction} numberOfLines={4}>{campaign.instruction}</Text>
-          <AppButton loading={busyId === campaign.id} onPress={() => void accept(campaign)} icon="hand-left-outline">Nhận campaign</AppButton>
+          <AppButton
+            loading={busyId === campaign.id}
+            disabled={isMarketplaceActionDisabled(campaign)}
+            variant={campaign.myParticipationStatus ? "outline" : "primary"}
+            onPress={() => void accept(campaign)}
+            icon={canContinue(campaign) ? "open-outline" : "hand-left-outline"}
+          >
+            {marketplaceActionLabel(campaign)}
+          </AppButton>
         </Card>)}
     </Screen>
   </ScrollView>;
@@ -328,7 +364,7 @@ export function CollaboratorParticipationScreen({ participationId, navigate }: {
         {!isInternal && campaign.googleFormUrl && <AppButton variant="outline" onPress={() => void Linking.openURL(campaign.googleFormUrl!)} icon="open-outline">Mở Google Form</AppButton>}
       </Card>
 
-      {alreadySubmitted ? <Card tone="amber"><Subtitle>Participation đã ở trạng thái {workStatusText(participation.status)}; backend không cho tạo thêm submission pending/approved.</Subtitle></Card> :
+      {alreadySubmitted ? <Card tone="amber"><Subtitle>Campaign này đã ở trạng thái {workStatusText(participation.status)}. Bạn không cần nộp lại kết quả.</Subtitle></Card> :
         <Card>
           <Text style={styles.cardTitle}>{isInternal ? "Trả lời form nội bộ" : "Nộp kết quả Google Form"}</Text>
           {isInternal ? <>

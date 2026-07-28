@@ -45,6 +45,7 @@ export function CustomerDashboardScreen({ navigate }: { navigate: (route: Custom
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [error, setError] = useState("");
   const [payment, setPayment] = useState<CampaignPayment | null>(null);
 
@@ -86,6 +87,26 @@ export function CustomerDashboardScreen({ navigate }: { navigate: (route: Custom
     }
   };
 
+  const checkPayment = async () => {
+    if (!payment) return;
+    setCheckingPayment(true);
+    try {
+      const latest = await campaignApi.payment(payment.id);
+      if (latest.status === "PAID") {
+        Alert.alert("SureVey", "Thanh toán đã được xác nhận.");
+        setPayment(null);
+        await load();
+      } else {
+        setPayment(latest);
+        Alert.alert("SureVey", `Trạng thái hiện tại: ${latest.status}`);
+      }
+    } catch (err) {
+      Alert.alert("SureVey", message(err));
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
   if (loading) return <LoadingState label="Đang tải campaign" />;
 
   return <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}>
@@ -104,7 +125,7 @@ export function CustomerDashboardScreen({ navigate }: { navigate: (route: Custom
         <Metric label="Response duyệt" value={stats.approved} tone="blue" />
       </Row>
 
-      {payment && <PaymentCard payment={payment} onClose={() => setPayment(null)} />}
+      {payment && <PaymentCard payment={payment} checking={checkingPayment} onCheck={() => void checkPayment()} onClose={() => setPayment(null)} />}
 
       {campaigns.length === 0 ? <EmptyState title="Chưa có campaign" description="Tạo campaign đầu tiên để bắt đầu thu thập response." icon="clipboard-outline" /> :
         campaigns.map(campaign => {
@@ -140,7 +161,7 @@ export function CustomerDashboardScreen({ navigate }: { navigate: (route: Custom
   </ScrollView>;
 }
 
-function PaymentCard({ payment, onClose }: { payment: CampaignPayment; onClose: () => void }) {
+function PaymentCard({ payment, checking, onCheck, onClose }: { payment: CampaignPayment; checking: boolean; onCheck: () => void; onClose: () => void }) {
   return <Card tone="green">
     <Row spread>
       <Text style={styles.cardTitle}>Thanh toán campaign</Text>
@@ -153,6 +174,8 @@ function PaymentCard({ payment, onClose }: { payment: CampaignPayment; onClose: 
     <InfoLine label="Chủ tài khoản" value={payment.bankAccountName} />
     <InfoLine label="Số tài khoản" value={payment.bankAccountNumber} />
     <InfoLine label="Nội dung" value={payment.transferContent} />
+    <InfoLine label="Trạng thái" value={payment.status} />
+    <AppButton loading={checking} onPress={onCheck} icon="refresh-outline">Kiểm tra trạng thái</AppButton>
     {payment.qrImageUrl && <AppButton variant="outline" onPress={() => void Linking.openURL(payment.qrImageUrl!)} icon="open-outline">Mở ảnh QR</AppButton>}
   </Card>;
 }
@@ -316,7 +339,6 @@ export function CustomerCampaignDetailScreen({ campaignId, navigate }: { campaig
   };
 
   if (loading) return <LoadingState label="Đang tải chi tiết" />;
-
   if (!campaign) return <Screen><ErrorBanner messageText={error || "Không tìm thấy campaign"} /></Screen>;
 
   const progress = campaign.targetResponses ? Math.round(campaign.approvedResponses / campaign.targetResponses * 100) : 0;
